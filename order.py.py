@@ -6,14 +6,19 @@ from select import select
 from tkinter import *
 from tkinter import messagebox
 from tkinter import ttk
+# from tkinter import _Padding
 from tkinter.tix import Select
+from turtle import width
 from PIL import ImageTk, Image
+from numpy import empty
 import pandas as pd
 from tkinter.messagebox import showinfo
 import tkinter.scrolledtext as scrolledtext
 from tkinter.filedialog import askopenfilename
 import os, sys
+from pymysql import NULL
 from win32 import win32print
+from tkinter.filedialog import asksaveasfile
 # import win32api
 ##############################################################
 import tkinter as tk
@@ -21,6 +26,9 @@ import tkinter as tk
 import webbrowser
 from tkcalendar import Calendar
 from tkcalendar import DateEntry
+import tkcalendar
+import pandas
+from datetime import timedelta
 from datetime import date
 from tkinter import filedialog
 import subprocess
@@ -123,8 +131,6 @@ photo9 = PhotoImage(file = "images/sum.png")
 photo10 = PhotoImage(file = "images/text-message.png")
 
 #ORDER MODULE
-
-
 
 #create new order
 
@@ -260,30 +266,50 @@ def create():
 
 
 
-    
-               
-
-    # enter=Label(cuselection, text="Enter filter text").place(x=5, y=10)
-    # e1=Entry(cuselection, width=20).place(x=110, y=10)
-    # text=Label(cuselection, text="Filtered column").place(x=340, y=10)
-    # e2=Entry(cuselection, width=20).place(x=450, y=10)
-
-
-    global slctcstmrtree 
-
+    global slctcstmrtree
     slctcstmrtree=ttk.Treeview(cuselection, height=27)
     slctcstmrtree["columns"]=["1","2","3","4"]
-    slctcstmrtree.column("#0", width=35)
-    slctcstmrtree.column("1", width=160)
-    slctcstmrtree.column("2", width=160)
-    slctcstmrtree.column("3", width=140)
-    slctcstmrtree.column("4", width=140)
+    slctcstmrtree.column("#0", width=35, anchor="center")
+    slctcstmrtree.column("1", width=160, anchor="center")
+    slctcstmrtree.column("2", width=160, anchor="center")
+    slctcstmrtree.column("3", width=140, anchor="center")
+    slctcstmrtree.column("4", width=140, anchor="center")
     slctcstmrtree.heading("#0",text="")
     slctcstmrtree.heading("1",text="Customer/Ventor ID")
     slctcstmrtree.heading("2",text="Customer/Ventor Name")
     slctcstmrtree.heading("3",text="Tel.")
     slctcstmrtree.heading("4",text="Contact Person")
     slctcstmrtree.place(x=5, y=45)
+
+
+    def filt():
+      # global filttxt 
+  
+      filtr = filttxt.get()
+      for record in slctcstmrtree.get_children():
+        slctcstmrtree.delete(record)
+  
+      sqlcusven = "SELECT * FROM Customer WHERE businessname=%s"
+      valcusven = (filtr, )
+      fbcursor.execute(sqlcusven, valcusven)
+      records = fbcursor.fetchall()
+      print(records)
+
+  
+      count=0
+      for i in records:
+        if True:
+         slctcstmrtree.insert(parent='', index='end', iid=i, text='', values=(i[0],i[4],i[10],i[8]))  
+        else:
+          pass
+      count += 1
+
+    # global filttxt
+    enter=Label(cuselection, text="Enter filter text").place(x=5, y=10)
+    filttxt=Entry(cuselection, width=20)
+    filttxt.place(x=110, y=10)
+    fltrbutton=Button(cuselection,text = 'Click Here',command=filt)
+    fltrbutton.place(x=236,y=7,height=25,width=70)
 
     # def treefthcng():
     #  itemid = slctcstmrtree.item(slctcstmrtree.focus())["values"][1]
@@ -315,9 +341,26 @@ def create():
     ctegorytree.heading("1",text="View filter by category", anchor=CENTER)
     ctegorytree.place(x=660, y=45)
 
+    listbox = Listbox(cuselection,height = 33,  
+              width = 40,  
+              bg = "white",
+              activestyle = 'dotbox',  
+              fg = "black",
+              highlightbackground="white")
+    
+    listbox.insert(0, "                               View all records")
+    # listbox.insert(1, "                               View all products")
+    # listbox.insert(2, "                               View all services")
+    listbox.place(x=660,y=65,)
+    listbox.bind('<<ListboxSelect>>')
+
+
+    # scrollbar = Scrollbar(tab2)
+    # scrollbar.place(x=640, y=45, height=560)
+    # scrollbar.config( command=tree.yview )
+
     scrollbar = Scrollbar(cuselection)
-    scrollbar.place(x=640, y=45, height=560)
-    scrollbar.config( command=tree.yview )
+    scrollbar.place(x=1016+300+25, y=120, height=280+20)
 
     btn1=Button(cuselection,compound = LEFT,image=tick ,text="ok", width=60,command=treefthcng).place(x=15, y=610)
     btn1=Button(cuselection,compound = LEFT,image=tick,text="Edit selected customer", width=150,command=create1).place(x=250, y=610)
@@ -330,273 +373,356 @@ def create():
 
   #add new line item
   def newline():
-    newselection=Toplevel()
-    newselection.title("Select Customer")
-    newselection.geometry("930x650+240+10")
-    newselection.resizable(False, False)
+
+    try:
+      if not cmb.get():
+        messagebox.showerror('F-Billing Revolution', 'Add a customer before adding new line.') 
+      else:
+
+        newselection=Toplevel()
+        newselection.title("Select Customer")
+        newselection.geometry("930x650+240+10")
+        newselection.resizable(False, False)
+
+        #add new product
+        def product():  
+          global codeentry,nameentry,country,desentry,unitentry,pcsentry,costentry,priceentry,stockentry,lowentry,wareentry,txt,checkvarStatus,checkvarStatus2,checkvarStatus3
+          top = Toplevel()  
+          top.title("Add a new Product/Service")
+          p2 = PhotoImage(file = 'images/fbicon.png')
+          top.iconphoto(False, p2)
+
+          top.geometry("700x550+390+15")
+          tabControl = ttk.Notebook(top)
+          s = ttk.Style()
+          s.theme_use('default')
+          s.configure('TNotebook.Tab', background="#999999",padding=10,bd=0)
 
 
-    #add new product
-    def product():  
-      global codeentry,nameentry,country,desentry,unitentry,pcsentry,costentry,priceentry,stockentry,lowentry,wareentry,txt,checkvarStatus,checkvarStatus2,checkvarStatus3
-      top = Toplevel()  
-      top.title("Add a new Product/Service")
-      p2 = PhotoImage(file = 'images/fbicon.png')
-      top.iconphoto(False, p2)
+          tabsb1 = ttk.Frame(tabControl)
+          tab2 = ttk.Frame(tabControl)
+
+          tabControl.add(tabsb1,compound = LEFT, text ='Product/Service')
+          tabControl.add(tab2,compound = LEFT, text ='Product Image')
+
+          tabControl.pack(expand = 1, fill ="both")
+
+          innerFrame = Frame(tabsb1,bg="#f5f3f2", relief=GROOVE)
+          innerFrame.pack(side="top",fill=BOTH)
+
+          Customerlabelframe = LabelFrame(innerFrame,text="Product/Service",width=580,height=485)
+          Customerlabelframe.pack(side="top",fill=BOTH,padx=10)
+
+          code1=Label(Customerlabelframe,text="Code or SKU:",fg="blue",pady=10,padx=10)
+          code1.place(x=20,y=0)
+          codeentry = Entry(Customerlabelframe,width=35)
+          codeentry.place(x=120,y=8)
+
+          checkvarStatus=IntVar()
+          status1=Label(Customerlabelframe,text="Status:")
+          status1.place(x=500,y=8)
+          Button1 = Checkbutton(Customerlabelframe,
+                            variable = checkvarStatus,text="Active",compound="right",
+                            onvalue =0 ,
+                            offvalue = 1,
+
+                            width = 10)
+
+          Button1.place(x=550,y=5)
+
+          category1=Label(Customerlabelframe,text="Category:",pady=5,padx=10)
+          category1.place(x=20,y=40)
+          n = StringVar()
+          country = ttk.Combobox(Customerlabelframe, width = 40, textvariable = n )
+
+          country['values'] = ('Default',' India',' China',' Australia',' Nigeria',' Malaysia',' Italy',' Turkey',)
+
+          country.place(x=120,y=45)
+          country.current(0)
+
+
+          name1=Label(Customerlabelframe,text="Name :",fg="blue",pady=5,padx=10)
+          name1.place(x=20,y=70)
+          nameentry = Entry(Customerlabelframe,width=60)
+          nameentry.place(x=120,y=75)
+
+          des1=Label(Customerlabelframe,text="Description :",pady=5,padx=10)
+          des1.place(x=20,y=100)
+          desentry = Entry(Customerlabelframe,width=60)
+          desentry.place(x=120,y=105)
+
+          uval = IntVar(Customerlabelframe, value='$0.00')
+          unit1=Label(Customerlabelframe,text="Unit Price:",fg="blue",pady=5,padx=10)
+          unit1.place(x=20,y=130)
+          unitentry = Entry(Customerlabelframe,width=20,textvariable=uval)
+          unitentry.place(x=120,y=135)
+
+          pcsval = IntVar(Customerlabelframe, value='0')
+          pcs1=Label(Customerlabelframe,text="Pcs/Weight:",fg="blue",pady=5,padx=10)
+          pcs1.place(x=320,y=140)
+          pcsentry = Entry(Customerlabelframe,width=20,textvariable=pcsval)
+          pcsentry.place(x=410,y=140)
+
+          costval = IntVar(Customerlabelframe, value='$0.00')
+          cost1=Label(Customerlabelframe,text="Cost:",pady=5,padx=10)
+          cost1.place(x=20,y=160)
+          costentry = Entry(Customerlabelframe,width=20,textvariable=costval)
+          costentry.place(x=120,y=165)
+
+          priceval = IntVar(Customerlabelframe, value='$0.00')
+          price1=Label(Customerlabelframe,text="(Price-Cost):",pady=5,padx=10)
+          price1.place(x=20,y=190)
+          priceentry = Entry(Customerlabelframe,width=20,textvariable=priceval)
+          priceentry.place(x=120,y=195)
+
+          checkvarStatus2=IntVar()
+
+          Button2 = Checkbutton(Customerlabelframe,variable = checkvarStatus2,
+                            text="Taxable Tax1rate",compound="right",
+                            onvalue =0 ,
+                            offvalue = 1,
+                            height=2,
+                            width = 12)
+
+          Button2.place(x=415,y=170)
+
+
+          checkvarStatus3=IntVar()
+
+          Button3 = Checkbutton(Customerlabelframe,variable = checkvarStatus3,
+                            text="No stock Control",
+                            onvalue =1 ,
+                            offvalue = 0,
+                            height=3,
+                            width = 15)
+
+          Button3.place(x=40,y=220)
+
+
+          stockval = IntVar(Customerlabelframe)
+          stock1=Label(Customerlabelframe,text="Stock:",pady=5,padx=10)
+          stock1.place(x=90,y=260)
+          stockentry = Entry(Customerlabelframe,width=15,textvariable=stockval)
+          stockentry.place(x=150,y=265)
+
+          lowval = IntVar(Customerlabelframe)
+          low1=Label(Customerlabelframe,text="Low Stock Warning Limit:",pady=5,padx=10)
+          low1.place(x=300,y=260)
+          lowentry = Entry(Customerlabelframe,width=10,textvariable=lowval)
+          lowentry.place(x=495,y=265)
+
+
+          ware1=Label(Customerlabelframe,text="Warehouse:",pady=5,padx=10)
+          ware1.place(x=60,y=290)
+          wareentry = Entry(Customerlabelframe,width=50)
+          wareentry.place(x=150,y=295)
+
+          text1=Label(Customerlabelframe,text="Private notes(not appears on invoice):",pady=5,padx=10)
+          text1.place(x=20,y=330)
+
+          txt = scrolledtext.ScrolledText(Customerlabelframe, undo=True,width=72,height=4)
+          txt.place(x=32,y=358)
+
+
+
+
+          okButton = Button(innerFrame,compound = LEFT,image=tick , text ="Ok",command=ord_prdt_reg,width=60)
+          okButton.pack(side=LEFT)
+
+          cancelButton = Button(innerFrame,compound = LEFT,image=cancel ,text="Cancel",width=60)
+          cancelButton.pack(side=RIGHT)
+
+          imageFrame = Frame(tab2, relief=GROOVE,height=580)
+          imageFrame.pack(side="top",fill=BOTH)
+
+          browseimg=Label(imageFrame,text=" Browse for product image file(recommended image type:JPG,size 480x320 pixels) ",bg='#f5f3f2')
+          browseimg.place(x=15,y=35)
+
+          browsebutton=Button(imageFrame,text = 'Browse')
+          browsebutton.place(x=580,y=30,height=30,width=50)
+
+          removeButton = Button(imageFrame,compound = LEFT,image=cancel, text ="Remove Product Image",width=150)
+          removeButton.place(x=400,y=450)
+
+
+
+
+
+
+        # text=Label(newselection, text="Filtered column").place(x=340, y=10)
+        # e2=Entry(newselection, width=20).place(x=450, y=10)
+
+        addcusventtree=ttk.Treeview(newselection, height=27)
+        addcusventtree["columns"]=["1","2","3", "4","5"]
+        addcusventtree.column("#0", width=35, anchor="center")
+        addcusventtree.column("1", width=160, anchor="center")
+        addcusventtree.column("2", width=160, anchor="center")
+        addcusventtree.column("3", width=140, anchor="center")
+        addcusventtree.column("4", width=70, anchor="center")
+        addcusventtree.column("5", width=70, anchor="center")
+        addcusventtree.heading("#0",text="")
+        addcusventtree.heading("1",text="ID/SKU")
+        addcusventtree.heading("2",text="Product/Service Name")
+        addcusventtree.heading("3",text="Unit price")
+        addcusventtree.heading("4",text="Service")
+        addcusventtree.heading("5",text="Stock")
+        addcusventtree.place(x=5, y=45)
+        def filtm():
+        # global filttxt 
+     
+         filtr = filttxt.get()
+         for record in addcusventtree.get_children():
+           addcusventtree.delete(record)
     
-      top.geometry("700x550+390+15")
-      tabControl = ttk.Notebook(top)
-      s = ttk.Style()
-      s.theme_use('default')
-      s.configure('TNotebook.Tab', background="#999999",padding=10,bd=0)
-
-
-      tab1 = ttk.Frame(tabControl)
-      tab2 = ttk.Frame(tabControl)
-     
-      tabControl.add(tab1,compound = LEFT, text ='Product/Service')
-      tabControl.add(tab2,compound = LEFT, text ='Product Image')
-     
-      tabControl.pack(expand = 1, fill ="both")
-     
-      innerFrame = Frame(tab1,bg="#f5f3f2", relief=GROOVE)
-      innerFrame.pack(side="top",fill=BOTH)
-
-      Customerlabelframe = LabelFrame(innerFrame,text="Product/Service",width=580,height=485)
-      Customerlabelframe.pack(side="top",fill=BOTH,padx=10)
-
-      code1=Label(Customerlabelframe,text="Code or SKU:",fg="blue",pady=10,padx=10)
-      code1.place(x=20,y=0)
-      codeentry = Entry(Customerlabelframe,width=35)
-      codeentry.place(x=120,y=8)
-
-      checkvarStatus=IntVar()
-      status1=Label(Customerlabelframe,text="Status:")
-      status1.place(x=500,y=8)
-      Button1 = Checkbutton(Customerlabelframe,
-                        variable = checkvarStatus,text="Active",compound="right",
-                        onvalue =0 ,
-                        offvalue = 1,
-                       
-                        width = 10)
-
-      Button1.place(x=550,y=5)
-
-      category1=Label(Customerlabelframe,text="Category:",pady=5,padx=10)
-      category1.place(x=20,y=40)
-      n = StringVar()
-      country = ttk.Combobox(Customerlabelframe, width = 40, textvariable = n )
-       
-      country['values'] = ('Default',' India',' China',' Australia',' Nigeria',' Malaysia',' Italy',' Turkey',)
-      
-      country.place(x=120,y=45)
-      country.current(0)
-
-
-      name1=Label(Customerlabelframe,text="Name :",fg="blue",pady=5,padx=10)
-      name1.place(x=20,y=70)
-      nameentry = Entry(Customerlabelframe,width=60)
-      nameentry.place(x=120,y=75)
-
-      des1=Label(Customerlabelframe,text="Description :",pady=5,padx=10)
-      des1.place(x=20,y=100)
-      desentry = Entry(Customerlabelframe,width=60)
-      desentry.place(x=120,y=105)
-
-      uval = IntVar(Customerlabelframe, value='$0.00')
-      unit1=Label(Customerlabelframe,text="Unit Price:",fg="blue",pady=5,padx=10)
-      unit1.place(x=20,y=130)
-      unitentry = Entry(Customerlabelframe,width=20,textvariable=uval)
-      unitentry.place(x=120,y=135)
-
-      pcsval = IntVar(Customerlabelframe, value='0')
-      pcs1=Label(Customerlabelframe,text="Pcs/Weight:",fg="blue",pady=5,padx=10)
-      pcs1.place(x=320,y=140)
-      pcsentry = Entry(Customerlabelframe,width=20,textvariable=pcsval)
-      pcsentry.place(x=410,y=140)
-
-      costval = IntVar(Customerlabelframe, value='$0.00')
-      cost1=Label(Customerlabelframe,text="Cost:",pady=5,padx=10)
-      cost1.place(x=20,y=160)
-      costentry = Entry(Customerlabelframe,width=20,textvariable=costval)
-      costentry.place(x=120,y=165)
-
-      priceval = IntVar(Customerlabelframe, value='$0.00')
-      price1=Label(Customerlabelframe,text="(Price-Cost):",pady=5,padx=10)
-      price1.place(x=20,y=190)
-      priceentry = Entry(Customerlabelframe,width=20,textvariable=priceval)
-      priceentry.place(x=120,y=195)
-
-      checkvarStatus2=IntVar()
-     
-      Button2 = Checkbutton(Customerlabelframe,variable = checkvarStatus2,
-                        text="Taxable Tax1rate",compound="right",
-                        onvalue =0 ,
-                        offvalue = 1,
-                        height=2,
-                        width = 12)
-
-      Button2.place(x=415,y=170)
-
-
-      checkvarStatus3=IntVar()
-     
-      Button3 = Checkbutton(Customerlabelframe,variable = checkvarStatus3,
-                        text="No stock Control",
-                        onvalue =1 ,
-                        offvalue = 0,
-                        height=3,
-                        width = 15)
-
-      Button3.place(x=40,y=220)
-
-
-      stockval = IntVar(Customerlabelframe)
-      stock1=Label(Customerlabelframe,text="Stock:",pady=5,padx=10)
-      stock1.place(x=90,y=260)
-      stockentry = Entry(Customerlabelframe,width=15,textvariable=stockval)
-      stockentry.place(x=150,y=265)
-
-      lowval = IntVar(Customerlabelframe)
-      low1=Label(Customerlabelframe,text="Low Stock Warning Limit:",pady=5,padx=10)
-      low1.place(x=300,y=260)
-      lowentry = Entry(Customerlabelframe,width=10,textvariable=lowval)
-      lowentry.place(x=495,y=265)
-
-     
-      ware1=Label(Customerlabelframe,text="Warehouse:",pady=5,padx=10)
-      ware1.place(x=60,y=290)
-      wareentry = Entry(Customerlabelframe,width=50)
-      wareentry.place(x=150,y=295)
-
-      text1=Label(Customerlabelframe,text="Private notes(not appears on invoice):",pady=5,padx=10)
-      text1.place(x=20,y=330)
-
-      txt = scrolledtext.ScrolledText(Customerlabelframe, undo=True,width=72,height=4)
-      txt.place(x=32,y=358)
-
-
-
-
-      okButton = Button(innerFrame,compound = LEFT,image=tick , text ="Ok",command=ord_prdt_reg,width=60)
-      okButton.pack(side=LEFT)
-
-      cancelButton = Button(innerFrame,compound = LEFT,image=cancel ,text="Cancel",width=60)
-      cancelButton.pack(side=RIGHT)
-
-      imageFrame = Frame(tab2, relief=GROOVE,height=580)
-      imageFrame.pack(side="top",fill=BOTH)
-
-      browseimg=Label(imageFrame,text=" Browse for product image file(recommended image type:JPG,size 480x320 pixels) ",bg='#f5f3f2')
-      browseimg.place(x=15,y=35)
-
-      browsebutton=Button(imageFrame,text = 'Browse')
-      browsebutton.place(x=580,y=30,height=30,width=50)
-      
-      removeButton = Button(imageFrame,compound = LEFT,image=cancel, text ="Remove Product Image",width=150)
-      removeButton.place(x=400,y=450)
-
-
-
+         sqlcusven = "SELECT * FROM Productservice WHERE name=%s"
+         valcusven = (filtr, )
+         fbcursor.execute(sqlcusven, valcusven)
+         records = fbcursor.fetchall()
+         print(records)
+  
     
-                    
-    # enter=Label(newselection, text="Enter filter text").place(x=5, y=10)
-    # e1=Entry(newselection, width=20).place(x=110, y=10)
-    # text=Label(newselection, text="Filtered column").place(x=340, y=10)
-    # e2=Entry(newselection, width=20).place(x=450, y=10)
-
-    addcusventtree=ttk.Treeview(newselection, height=27)
-    addcusventtree["columns"]=["1","2","3", "4","5"]
-    addcusventtree.column("#0", width=35)
-    addcusventtree.column("1", width=160)
-    addcusventtree.column("2", width=160)
-    addcusventtree.column("3", width=140)
-    addcusventtree.column("4", width=70)
-    addcusventtree.column("5", width=70)
-    addcusventtree.heading("#0",text="")
-    addcusventtree.heading("1",text="ID/SKU")
-    addcusventtree.heading("2",text="Product/Service Name")
-    addcusventtree.heading("3",text="Unit price")
-    addcusventtree.heading("4",text="Service")
-    addcusventtree.heading("5",text="Stock")
-    addcusventtree.place(x=5, y=45)
-
-
-    def cancelnewselection():
-     newselection.destroy()
-
-    def selectp1():
-        selected = addcusventtree.focus()
-        global valuep
-        valuep= addcusventtree.item(selected)["values"][0]
-        # messagebox.showinfo("",valuep)
-
-        sql = "SELECT * FROM productservice  WHERE productserviceid= %s"
-        i=(valuep,)
-        fbcursor.execute(sql,i)
+         count=0
+         for i in records:
+           if True:
+            addcusventtree.insert(parent='', index='end', iid=i, text='', values=(i[2],i[4],i[7],i[12],i[13]))  
+           else:
+             pass
+         count += 1
+  
+    #   global filttxt
+        enter=Label(newselection, text="Enter filter text").place(x=5, y=10)
+        filttxt=Entry(newselection, width=20)
+        filttxt.place(x=110, y=10)
+        fltrbutton=Button(newselection,text = 'Go',command=filtm)
+        fltrbutton.place(x=236,y=7,height=25,width=70)
+        # fltrbutton=Button(newselection,text = 'Back',command=filtm)
+        # fltrbutton.place(x=246,y=7,height=25,width=70)
         
-        a=0
+
+
+        def cancelnewselection():
+         newselection.destroy()
+
+        def selectp1():
+            selected = addcusventtree.focus()
+            global valuep
+            valuep= addcusventtree.item(selected)["values"][0]
+            # messagebox.showinfo("",valuep)
+
+            sql = "SELECT * FROM productservice  WHERE productserviceid= %s"
+            i=(valuep,)
+            fbcursor.execute(sql,i)
+
+            a=0
+            j = 0
+            for i in fbcursor:
+                tree10.insert(parent='', index='end', iid=i, text='', values=(i[2],i[4],i[5],i[7],1,i[8],i[10],(i[7]*1)))
+                for line in tree10.get_children():
+                  idsave=tree10.item(line)['values'][7]
+                  a+=idsave
+            j += 1
+            pricecol1.config(text=a)
+
+
+
+
+
+            # rept=fbcursor.execute('"SELECT * FROM Orders"')
+            # repeat=rept[0]
+            # print(repeat)
+            # if not repeat == frck:
+
+            valu10= tree10.item(selected)["values"][0]
+            sqllll = "SELECT * FROM productservice  WHERE productserviceid= %s"
+            r=(valu10,)
+            fbcursor.execute(sqllll,r)
+            child=fbcursor.fetchone()
+
+            qurz=int(1)
+            sql21= 'INSERT INTO storingproduct(Productserviceid,orderid,sku,category,name,description,status,unitprice,peices,cost,taxable,priceminuscost,serviceornot,stock,stocklimit,warehouse,privatenote,quantity) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)'
+            vatree=(child[0],frck,child[2],child[3],child[4],child[5],child[6],child[7],child[8],child[9],child[10],child[11],child[12],child[13],child[14],child[15],child[16],qurz)
+            fbcursor.execute(sql21,vatree,)
+            fbilldb.commit()
+
+
+
+
+
+
+            # try:
+            #   k = 0
+            #   for s in fbcursor:
+            #     prstree.insert(parent='', index='end', iid=s, text='', values=(s[2],s[4],S[5],s[7],s[13],s[8],S[10],(s[7]*s[13])))
+            #   k += 1
+            # except:
+            #   pass
+
+            newselection.destroy()
+
+
+            # sql = "SELECT * FROM productservice  WHERE productserviceid= %s"
+            # i=(valuep,)
+            # x=fbcursor.execute(sql,i)
+            # print(x)
+            # k = 0
+            # for s in x:
+            #  prstree.insert(parent='', index='end', iid=s, text='', values=(s[2],s[4],S[5],s[7],s[13],s[8],S[10],(s[7]*s[13])))
+            # k += 1
+
+
+        fbcursor.execute('SELECT * FROM Productservice;') 
         j = 0
         for i in fbcursor:
-            tree10.insert(parent='', index='end', iid=i, text='', values=(i[2],i[4],i[5],i[7],i[13],i[8],i[10],(i[7]*i[13])))
-            for line in tree10.get_children():
-              idsave=tree10.item(line)['values'][7]
-              a+=idsave
+          addcusventtree.insert(parent='', index='end', iid=i, text=' ', values=(i[2],i[4],i[7],i[12],i[13]))
         j += 1
-        pricecol1.config(text=a)
-
-
-        # try:
-        #   k = 0
-        #   for s in fbcursor:
-        #     prstree.insert(parent='', index='end', iid=s, text='', values=(s[2],s[4],S[5],s[7],s[13],s[8],S[10],(s[7]*s[13])))
-        #   k += 1
-        # except:
-        #   pass
-
-        newselection.destroy()
-
-
-        # sql = "SELECT * FROM productservice  WHERE productserviceid= %s"
-        # i=(valuep,)
-        # x=fbcursor.execute(sql,i)
-        # print(x)
-        # k = 0
-        # for s in x:
-        #  prstree.insert(parent='', index='end', iid=s, text='', values=(s[2],s[4],S[5],s[7],s[13],s[8],S[10],(s[7]*s[13])))
-        # k += 1
-
-
-    fbcursor.execute('SELECT * FROM Productservice;') 
-    j = 0
-    for i in fbcursor:
-      addcusventtree.insert(parent='', index='end', iid=i, text=' ', values=(i[2],i[4],i[7],i[12],i[13]))
-    j += 1
 
 
 
 
-    ctegorytree=ttk.Treeview(newselection, height=27)
-    ctegorytree["columns"]=["1"]
-    ctegorytree.column("#0", width=35, minwidth=20)
-    ctegorytree.column("1", width=205, minwidth=25, anchor=CENTER)    
-    ctegorytree.heading("#0",text="", anchor=W)
-    ctegorytree.heading("1",text="View filter by category", anchor=CENTER)
-    ctegorytree.place(x=660, y=45)
+        ctegorytree=ttk.Treeview(newselection, height=27)
+        ctegorytree["columns"]=["1"]
+        ctegorytree.column("#0", width=35, minwidth=20)
+        ctegorytree.column("1", width=205, minwidth=25, anchor=CENTER)    
+        ctegorytree.heading("#0",text="", anchor=W)
+        ctegorytree.heading("1",text="View filter by category", anchor=CENTER)
+        ctegorytree.place(x=660, y=45)
 
+        listbox = Listbox(newselection,height = 33,  
+                      width = 40,  
+                      bg = "white",
+                      activestyle = 'dotbox',  
+                      fg = "black",
+                      highlightbackground="white")
+      
+        listbox.insert(0, "                               View all records")
+        # listbox.insert(1, "                               View all products")
+        # listbox.insert(2, "                               View all services")
+        listbox.place(x=660,y=65,)
+        listbox.bind('<<ListboxSelect>>')
+
+
+        
+
+
+
+        # scrollbar = Scrollbar(newselection)
+        # scrollbar.place(x=640, y=45, height=560)
+        # scrollbar.config( command=tree.yview )
+        scrollbar = Scrollbar(newselection)
+        scrollbar.place(x=1016+300+25, y=120, height=280+20)
+
+
+
+        btn1=Button(newselection,compound = LEFT,image=tick ,text="ok", width=60,command=selectp1).place(x=15, y=610)
+        btn1=Button(newselection,compound = LEFT,image=tick , text="Edit product/Service", width=150,command=product).place(x=250, y=610)
+        btn1=Button(newselection,compound = LEFT,image=tick , text="Add product/Service", width=150,command=product).place(x=435, y=610)
+        btn1=Button(newselection,compound = LEFT,image=cancel ,text="Cancel", width=60,command=cancelnewselection).place(x=740, y=610)
+    except:
+     try:
+      newselection.destroy()
+     except:
+      pass
     
-
-    scrollbar = Scrollbar(newselection)
-    scrollbar.place(x=640, y=45, height=560)
-    scrollbar.config( command=tree.yview )
-
-   
-
-    btn1=Button(newselection,compound = LEFT,image=tick ,text="ok", width=60,command=selectp1).place(x=15, y=610)
-    btn1=Button(newselection,compound = LEFT,image=tick , text="Edit product/Service", width=150,command=product).place(x=250, y=610)
-    btn1=Button(newselection,compound = LEFT,image=tick , text="Add product/Service", width=150,command=product).place(x=435, y=610)
-    btn1=Button(newselection,compound = LEFT,image=cancel ,text="Cancel", width=60,command=cancelnewselection).place(x=740, y=610)
-
 
 
   #preview new line
@@ -687,70 +813,209 @@ def create():
   
   #delete line item  
   def delete1():
-      selected_item = tree10.selection()[0]
-      print=(selected_item)
-      tree10.delete(selected_item)
-
-  #delete orders  
-  def dele():
-    delmess = messagebox.askyesno("Delete Invoice", "Are you sure to delete this Invoice?")
-    messagebox.showerror("F-Billing Revolution","Customer is required,please select customer before deleting line item .")
-
-    if delmess == True:
-      itemid = ordtree.item(ordtree.focus())["values"][1]
-      print(itemid,)
-      sql = 'DELETE FROM Orders WHERE orderid=%s'
-      val = (itemid,)
+      # selected_item = tree10.selection()[0]
+      # print=(selected_item)
+      # tree10.delete(selected_item)
+      
+      xyz = tree10.item(tree10.focus())["values"][0]
+      print(xyz,)
+      dltnow=frck
+      sql = 'DELETE FROM storingproduct WHERE orderid=%s AND Productserviceid=%s'
+      val = (dltnow,xyz,)
       fbcursor.execute(sql, val)
       fbilldb.commit()
-      ordtree.delete(ordtree.selection()[0])
-    else:
-      pass  
+      tree10.delete(tree10.selection()[0])
+
+      for record in tree10.get_children():
+                tree10.delete(record)
+        
+      sql = "SELECT * FROM storingproduct WHERE orderid= %s"
+      i=(dltnow,)
+      fbcursor.execute(sql,i)
+  
+      a=0
+      j = 0
+      for i in fbcursor:
+        tree10.insert(parent='', index='end', iid=i, text='', values=(i[4],i[6],i[7],i[9],i[22],i[10],i[12],(i[9]*i[22])))
+        for line in tree10.get_children():
+            idsave=tree10.item(line)['values'][7]
+        a+=idsave
+      j += 1
+      pricecol1.config(text=a)
+      # delmess = messagebox.askyesno("Delete Product", "Are you sure to delete this Product?")
+      # if delmess == True:
+      #   itemid = vwedttree1.item(vwedttree1.focus())["values"][1]
+      #   print(itemid,)
+      #   sql = 'DELETE FROM Orders WHERE orderid=%s'
+      #   val = (itemid,)
+      #   fbcursor.execute(sql, val)
+      #   fbilldb.commit()
+      #   ordtree.delete(ordtree.selection()[0])
+
+      #   sqlstrngprdct='DELETE FROM storingproduct WHERE orderid=%s'
+      #   valstpr = (itemid,)
+      #   fbcursor.execute(sqlstrngprdct, valstpr)
+      #   fbilldb.commit()
+      #   vwedttree1.delete(vwedttree1.selection()[0])
+      # else:
+      #  pass
+
+  # #delete orders  
+  # def dele():
+  #   delmess = messagebox.askyesno("Delete Invoice", "Are you sure to delete this Invoice?")
+  #   messagebox.showerror("F-Billing Revolution","Customer is required,please select customer before deleting line item .")
+
+  #   if delmess == True:
+  #     itemid = ordtree.item(ordtree.focus())["values"][1]
+  #     print(itemid,)
+  #     sql = 'DELETE FROM Orders WHERE orderid=%s'
+  #     val = (itemid,)
+  #     fbcursor.execute(sql, val)
+  #     fbilldb.commit()
+  #     ordtree.delete(ordtree.selection()[0])
+  #   else:
+  #     pass  
 ################################################ CREATE ORDER #############################################
   def creatingorder():
+  #  if ot1v.cget("text")==NULL:
+  #     messagebox.showerror('F-Billing Revolution', 'Add a customer before adding new line.') 
+  #  else: 
     cmbodto=cmb.get()
     addrsfrm=addrs.get('1.0', 'end-1c')
     sptto=spt.get()
-    adrsto=adrs.get('1.0', 'end-1c')
+    adrsto=adrs1.get('1.0', 'end-1c')
     emlfrm=eml.get()
     smsfrm=smsno.get()
-    ordrid=ord.get()
+    # ordrid=ord.get()
     orddatein=orddte.get_date()
     ordduein=duedte.get_date()
     trmsin=trms.get()
     extracstnme=xtracstnme.get()
-    discountrte=dscntrte.get()
-    extracst=xtracst.get()
-    taax=taxx.get()
+    discountrte=dscntrtecr.get()
+    extracst=xtracstcr.get()
+    taax=taxxcr.get()
     tplts=tmplte.get()
     slzprzn=salesprsn.get()
     ctgryy=ctgry.get()
 
     ab="Draft"
 
-    # itemid1 = tree10.item(tree10.get_children())["values"][1]
-    # print(itemid1)
+  
 
-    for line in tree10.get_children():
-      idsave=tree10.item(line)['values'][0]
 
-      sql1= 'SELECT * FROM  Productservice WHERE Productserviceid = %s'
-      val=(idsave,)
-      print(val)
-      fbcursor.execute(sql1,val,)
-      child=fbcursor.fetchone()
-      print(child)
-      sql2= 'INSERT INTO storingproduct(Productserviceid,orderid,sku,category,name,description,status,unitprice,peices,cost,taxable,priceminuscost,serviceornot,stock,stocklimit,warehouse,privatenote) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)'
-      val1=(child[0],ordrid,child[2],child[3],child[4],child[5],child[6],child[7],child[8],child[9],child[10],child[11],child[12],child[13],child[14],child[15],child[16])
-      fbcursor.execute(sql2,val1,)
-      fbilldb.commit()
+    # for line in tree10.get_children():
+    #   idsave=tree10.item(line)['values'][0]
+
+    #   sql1= 'SELECT * FROM  Productservice WHERE Productserviceid = %s'
+    #   val=(idsave,)
+    #   print(val)
+    #   fbcursor.execute(sql1,val,)
+    #   child=fbcursor.fetchone()
+    #   print(child)
+    #   sql2= 'INSERT INTO storingproduct(Productserviceid,orderid,sku,category,name,description,status,unitprice,peices,cost,taxable,priceminuscost,serviceornot,stock,stocklimit,warehouse,privatenote) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)'
+    #   val1=(child[0],ordrid,child[2],child[3],child[4],child[5],child[6],child[7],child[8],child[9],child[10],child[11],child[12],child[13],child[14],child[15],child[16])
+    #   fbcursor.execute(sql2,val1,)
+    #   fbilldb.commit()
       
-
+    # sss='INSERT INTO orders WHERE Order_total=%s'
+    # vvv=('NULL')
+    # fbcursor.execute(sss,vvv,)
+    # fbilldb.commit()
     
-    sql3='INSERT INTO Orders (orderid, order_date, due_date, businessname, status, extra_cost_name, extra_cost, template, sales_person, discount_rate, tax1, category, businessaddress, shipname, shipaddress, cpemail, cpmobileforsms) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)'
-    val2=(ordrid,orddatein,ordduein,cmbodto,ab,extracstnme,extracst,tplts,slzprzn,discountrte,taax,ctgryy,addrsfrm,sptto,adrsto,emlfrm,smsfrm)
+    # sql3='UPDATE Orders SET  order_date=%s, due_date=%s, businessname=%s, status=%s, extra_cost_name=%s, extra_cost=%s, template=%s, sales_person=%s, discount_rate=%s, tax1=%s, category=%s, businessaddress=%s, shipname=%s, shipaddress=%s, cpemail=%s, cpmobileforsms=%s,Order_total=%s WHERE orderid=%s'
+    # val2=(orddatein,ordduein,cmbodto,ab,extracstnme,extracst,tplts,slzprzn,discountrte,taax,ctgryy,addrsfrm,sptto,adrsto,emlfrm,smsfrm,ot1v,frck)
+    # fbcursor.execute(sql3,val2,)
+    # fbilldb.commit()
+
+
+    # def check_empty() :
+    #  if taxxcr.get():
+    #      pass     #your function where you want to jump
+    #  else:
+    #     print(' input required')
+
+    # ttlprzinptcr=pricecol1.cget("text")
+    # ratediscntcr=dscntrtecr.get()
+    # xtaxcr=taxxcr.get()
+    # cstxtracr=xtracstcr.get()
+    # print(ttlprzinptcr,ratediscntcr,xtaxcr,cstxtracr)
+ 
+ 
+    # sdd=round(int(ratediscntcr),3)
+    # pldd=int(ttlprzinptcr)
+    # p=round(pldd, 4)
+    # dsctedd=(sdd*pldd)/100
+    # dscdd=round(dsctedd, 4)
+    # discount=Label(summaryfrme, text=str(sdd)+"% Discount").place(x=0 ,y=0)
+    # discount1cr=Label(summaryfrme,text='Rs. '+str(dscdd))
+    # discount1cr.place(x=130 ,y=0)
+ 
+    # sbtotlhee=p-dscdd
+    # subtotl=round(sbtotlhee, 4)
+    # sub=Label(summaryfrme, text="Subtotal").place(x=0 ,y=21)
+    # sub100cr=Label(summaryfrme, text='Rs. '+str(subtotl))
+    # sub100cr.place(x=130 ,y=21)
+ 
+    # taxval91=int(xtaxcr)
+    # print(taxval91)
+    # tax1dsplay=(taxval91*subtotl)/100
+    # taxvalu=round(tax1dsplay,2)
+    # tax=Label(summaryfrme, text="Tax1").place(x=0 ,y=42)
+    # tax100cr=Label(summaryfrme, text='Rs. '+str(taxvalu))
+    # tax100cr.place(x=130 ,y=42)
+ 
+    # xtracstvaluzz=int(cstxtracr)
+    # xtra1cst=round(xtracstvaluzz, 4)
+    # cost=Label(summaryfrme, text="Extra cost").place(x=0 ,y=63)
+    # cost100cr=Label(summaryfrme, text='Rs. '+str(xtra1cst))
+    # cost100cr.place(x=130 ,y=63)
+  
+    # otherttlval=subtotl+taxvalu+xtra1cst
+    # ot1v=round(otherttlval, 4)
+    # order=Label(summaryfrme, text="Order total").place(x=0 ,y=84)
+    # order100cr=Label(summaryfrme, text='Rs. '+str(ot1v))
+    # order100cr.place(x=130 ,y=84)
+ 
+    # itemdot1=frck
+    # ordttl=ot1v
+ 
+    # sqlordttl = "INSERT INTO Orders WHERE Order_total=%s WHERE orderid = %s"
+    # valqordttl = (ordttl,itemdot1, )
+    # fbcursor.execute(sqlordttl, valqordttl,)
+    # fbilldb.commit()
+
+    sql3='UPDATE Orders SET  order_date=%s, due_date=%s, businessname=%s, status=%s, extra_cost_name=%s, extra_cost=%s, template=%s, sales_person=%s, discount_rate=%s, tax1=%s, category=%s, businessaddress=%s, shipname=%s, shipaddress=%s, cpemail=%s, cpmobileforsms=%s,Order_total=%s WHERE orderid=%s'
+    val2=(orddatein,ordduein,cmbodto,ab,extracstnme,extracst,tplts,slzprzn,discountrte,taax,ctgryy,addrsfrm,sptto,adrsto,emlfrm,smsfrm,ot1v,frck)
     fbcursor.execute(sql3,val2,)
     fbilldb.commit()
+
+    for record in ordtree.get_children():
+      ordtree.delete(record)
+    fbcursor.execute("select *  from Orders")
+    # pandsdata = fbcursor.fetchall()
+    # countp = 0
+    # for i in pandsdata:
+    #   ordtree.insert(parent='', index='end', iid=i, text='', values=(' ',i[0], i[1], i[2], i[3], i[4],i[5], i[6], i[7], i[8], i[9], i[10]))
+
+    # ordertotalinput=0
+    # for line in ordtree.get_children():
+    #  idsave1=ordtree.item(line)['values'][9]
+    # ordertotalinput += idsave1
+    # countp += 1
+    j = 0
+    for i in fbcursor:
+     ordtree.insert(parent='', index='end', iid=i, text='', values=(' ',i[0], i[1], i[2], i[3], i[4],i[5], i[6], i[7], i[8], i[9], i[10]))
+    
+     ordertotalinput=0
+     for line in ordtree.get_children():
+      idsave1=ordtree.item(line)['values'][9]
+      ordertotalinput += idsave1
+    j += 1
+    ordtotalrowcol.config(text=ordertotalinput)
+
+    # ordtotalrowcol.config(text=ordertotalinput)
+    messagebox.showinfo('Successfully Added','Successfully Added')
+
     
 
     # pop.destroy()
@@ -779,14 +1044,14 @@ def create():
   #     sms = e6.get()
   
   #     mysqldb=mysql.connector.connect(host="localhost",user="root",password="",database="fbilldb" , port="3306")
-  #     mycursor=mysqldb.cursor()
+  #     fbcursor=mysqldb.cursor()
   
   #     try:
   #       sql = "INSERT INTO  Customer (businessname,businessaddress,shipname,shipaddress,cpemail,cpmobileforsms) VALUES (%s, %s, %s, %s, %s, %s)"
   #       val = (order,address,ship,address1,email,sms)
-  #       mycursor.execute(sql, val)
+  #       fbcursor.execute(sql, val)
   #       mysqldb.commit()
-  #       lastid = mycursor.lastrowid
+  #       lastid = fbcursor.lastrowid
   #       #messagebox.showinfo("information", "Employee inserted successfully...")
   #       e1.delete(0, END)
   #       e2.delete(0, END)
@@ -800,13 +1065,13 @@ def create():
   #       mysqldb.rollback()
   #       mysqldb.close()
 
-  def addtotalprice():
-    global Sum
-    Sum=0.0
-    for line in tree10.get_children():
-       pricetotl=tree10.item(line)['values'][7]
-       Sum+=pricetotl
-    return Sum   
+  # def addtotalprice():
+  #   global Sum
+  #   Sum=0.0
+  #   for line in tree10.get_children():
+  #      pricetotl=tree10.item(line)['values'][7]
+  #      Sum+=pricetotl
+  #   return Sum   
 
 
       
@@ -834,10 +1099,10 @@ def create():
   w = Canvas(firFrame, width=1, height=65, bg="#b3b3b3", bd=0)
   w.pack(side="left", padx=5)
 
-  prev= Button(firFrame,compound="top", text="Preview\nOrder",relief=RAISED, image=photo4,bg="#f5f3f2", fg="black", height=55, bd=1, width=55,command=previewline)
-  prev.pack(side="left", pady=3, ipadx=4)
+  # prev= Button(firFrame,compound="top", text="Preview\nOrder",relief=RAISED, image=photo5,bg="#f5f3f2", fg="black", height=55, bd=1, width=55,command=previewline)
+  # prev.pack(side="left", pady=3, ipadx=4)
 
-  prin= Button(firFrame,compound="top", text="Print \nOrder",relief=RAISED, image=photo5,bg="#f5f3f2", fg="black", height=55, bd=1, width=55,command=printsele)
+  prin= Button(firFrame,compound="top", text="Print \nOrder",relief=RAISED, image=photo4,bg="#f5f3f2", fg="black", height=55, bd=1, width=55,command=printsele)
   prin.pack(side="left", pady=3, ipadx=4)
 
   w = Canvas(firFrame, width=1, height=65, bg="#b3b3b3", bd=0)
@@ -888,8 +1153,9 @@ def create():
 
 
 
-
+#  global slctcstmrtree
   def treefthcng():
+    global slctcstr
     itemid = slctcstmrtree.item(slctcstmrtree.focus())["values"][0]
     sql = "select * from Customer where customerid = %s"
     val = (itemid, )
@@ -901,20 +1167,56 @@ def create():
     addrs.insert("1.0", slctcstr[5])
     spt.delete(0,'end')
     spt.insert(0, slctcstr[6])
-    adrs.delete('1.0','end')
-    adrs.insert('1.0', slctcstr[7])
+    adrs1.delete('1.0','end')
+    adrs1.insert('1.0', slctcstr[7])
     eml.delete(0,'end')
     eml.insert(0, slctcstr[9])
     smsno.delete(0,'end')
     smsno.insert(0, slctcstr[10])
+
+    cmbodto=cmb.get()
+    addrsfrm=addrs.get('1.0', 'end-1c')
+    sptto=spt.get()
+    adrsto=adrs1.get('1.0', 'end-1c')
+    emlfrm=eml.get()
+    smsfrm=smsno.get()
+    # ordrid=ord.get()
+    
+
+
+
+    sql3='INSERT INTO Orders ( orderid,businessname, businessaddress, shipname, shipaddress, cpemail, cpmobileforsms) VALUES (%s,%s,%s,%s,%s,%s,%s)'
+    val2=(frck,cmbodto,addrsfrm,sptto,adrsto,emlfrm,smsfrm)
+    fbcursor.execute(sql3,val2,)
+    fbilldb.commit()
+    
     cuselection.destroy()
 
+  # def autocstmr(event):
+  #  zoo = cmb.get()
+  #  sql = "SELECT * FROM Customer WHERE businessname = %s"
+  #  val = (zoo, )
+  #  fbcursor.execute(sql, val)
+  #  cstmrauto = fbcursor.fetchall()
+  #  print(cstmrauto[9])
+ 
+  #  addrs.delete('1.0','end')
+  #  addrs.insert("1.0", cstmrauto[5])
+  #  spt.delete(0,'end')
+  #  spt.insert(0, cstmrauto[6])
+  #  adrs1.delete('1.0','end')
+  #  adrs1.insert('1.0', cstmrauto[7])
+  #  eml.delete(0,'end')
+  #  eml.insert(0, cstmrauto[9])
+  #  smsno.delete(0,'end')
+  #  smsno.insert(0, cstmrauto[10])
 
 
   order = Label(labelframe1, text="Order to").place(x=10,y=5)
-  cmb = ttk.Combobox(labelframe1,values=pdata,width=28)
+  # cmb = Entry(labelframe1,text=pdata,width=31)
+  cmb = Entry(labelframe1,width=31)
   cmb.place(x=80,y=5)
-
+  # cmb.bind("<<ComboboxSelected>>",autocstmr)
   # q = e1.focus()
 
   # sql = "select * from Customer where businessname=%s"
@@ -927,7 +1229,7 @@ def create():
   # addrs = fbcursor.fetchall()
   # print(addrs)                                values="addrs",
 
-  # mycursor=mysql.cursor()
+  # fbcursor=mysql.cursor()
   # fbcursor.execute("SELECT businessname FROM Customer")
   # myresult= fbcursor.fetchone()
   # for row in myresult:
@@ -974,40 +1276,65 @@ def create():
  
   
   ship=Label(labelframe1,text="Ship to").place(x=342,y=5)
-  spt=Entry(labelframe1,width=30)
+  spt=Entry(labelframe1,width=31)
   spt.place(x=402,y=3)
 
   address1=Label(labelframe1,text="Address").place(x=340,y=30)
-  adrs=scrolledtext.Text(labelframe1, undo=True,width=23)
-  adrs.place(x=402,y=30,height=70)
+  adrs1=scrolledtext.Text(labelframe1, undo=True,width=23)
+  adrs1.place(x=402,y=30,height=70)
 
-  btn1=Button(labelframe1,width=3,height=2,compound = LEFT,text=">>").place(x=280, y=50)
+##
+  def copying1():
+    # shpdlt=spt1.get(osdata[17])
+    spt.delete(0,END)
+    spt.insert(0,slctcstr[4])
+    adrs1.delete('1.0',END)
+    adrs1.insert('1.0',slctcstr[5])
+##
+  btn1=Button(labelframe1,width=3,height=2,compound = LEFT,text=">>",command=copying1)
+  btn1.place(x=290, y=48)
   
   labelframe2 = LabelFrame(fir1Frame,text="")
   labelframe2.place(x=10,y=130,width=640,height=42)
 
   email=Label(labelframe2,text="Email").place(x=10,y=5)
-  eml=Entry(labelframe2,width=30)
+  eml=Entry(labelframe2,width=31)
   eml.place(x=80,y=5)
 
-  sms=Label(labelframe2,text="SMS Number").place(x=328,y=5)
-  smsno=Entry(labelframe2,width=30)
+  sms=Label(labelframe2,text="SMS No.").place(x=340,y=5)
+  smsno=Entry(labelframe2,width=31)
   smsno.place(x=402,y=5)
     
   labelframe = LabelFrame(fir1Frame,text="Order",font=("arial",15))
   labelframe.place(x=652,y=5,width=290,height=170)
-
+ 
+ ##
+  fbcursor.execute("SELECT * FROM Orders ORDER BY orderid DESC LIMIT 1")
+  result = fbcursor.fetchone()
+ ##
   order=Label(labelframe,text="Order#").place(x=5,y=5)
   ord=Entry(labelframe,width=25)
   ord.place(x=100,y=5,)
+  ord.delete(0,'end')
+  if not result== None:
+   frck=result[0]+1
+  else:
+    frck=1
+  ord.insert(0, frck)
+ ##
+  def duecheckord1():
+     if checkvarStatus5.get()==0:
+       duedte['state'] = DISABLED  
+     else:
+       duedte['state'] = NORMAL
 
   orderdate=Label(labelframe,text="Order date").place(x=5,y=33)
-  orddte=DateEntry(labelframe,width=20)
-  orddte.place(x=150,y=33)
+  orddte=DateEntry(labelframe,width=25)
+  orddte.place(x=100,y=33)
   checkvarStatus5=IntVar()
-  duedate=Checkbutton(labelframe,variable = checkvarStatus5,text="Due date",onvalue =0 ,offvalue = 1).place(x=5,y=62)
-  duedte=DateEntry(labelframe,width=20)
-  duedte.place(x=150,y=62)
+  duedate=Checkbutton(labelframe,variable = checkvarStatus5,text="Due date",onvalue =1 ,offvalue = 0, command=duecheckord1).place(x=5,y=62)
+  duedte=DateEntry(labelframe,width=25)
+  duedte.place(x=100,y=62)
   terms=Label(labelframe,text="Terms").place(x=5,y=92)
   trms=ttk.Combobox(labelframe, value="",width=25)
   trms.place(x=100,y=92)
@@ -1023,15 +1350,15 @@ def create():
   tree10=ttk.Treeview(listFrame)
   tree10["columns"]=["1","2","3","4","5","6","7","8"]
 
-  tree10.column("#0", width=40)
-  tree10.column("1", width=80)
-  tree10.column("2", width=190)
-  tree10.column("3", width=190)
-  tree10.column("4", width=80)
-  tree10.column("5", width=60)
-  tree10.column("6", width=60)
-  tree10.column("7", width=60)
-  tree10.column("8", width=80)
+  tree10.column("#0", width=40, anchor="center")
+  tree10.column("1", width=80, anchor="center")
+  tree10.column("2", width=190, anchor="center")
+  tree10.column("3", width=190, anchor="center")
+  tree10.column("4", width=80, anchor="center")
+  tree10.column("5", width=60, anchor="center")
+  tree10.column("6", width=60, anchor="center")
+  tree10.column("7", width=60, anchor="center")
+  tree10.column("8", width=80, anchor="center")
 
   tree10.heading("#0")
   tree10.heading("1",text="ID/SKU")
@@ -1076,18 +1403,69 @@ def create():
     
     def value_assignment(event):
         printing = edit_box.get()
+        # print(printing)
+        indexcolaa=int(cola)-1
         new_value.set(printing)
+        # print(col)
         #only destroy will not update the value (perhaps event keeps running in background)
         #quit allows event to stop n update value in tree but does not close the window in single click 
         #rather on dbl click shuts down entire app 
+
+        selected0 = tree10.focus()
+        valuz1= tree10.item(selected0)["values"]
+        idgettingprdt=valuz1[0]
+        valuz1[indexcolaa]=printing
+        # print(valuz1)
+
+        sql2z0= 'UPDATE storingproduct SET sku=%s,name=%s,description=%s,unitprice=%s,quantity=%s,peices=%s,taxable=%s WHERE orderid=%s AND Productserviceid=%s'
+        val0z1=(valuz1[0],valuz1[1],valuz1[2],valuz1[3],valuz1[4],valuz1[5],valuz1[6],frck,idgettingprdt)
+        # dnz=(ordrid,sql2z0,)
+        # print(val0z1)
+        fbcursor.execute(sql2z0,val0z1)
+        fbilldb.commit()
+
+        qntsql= 'UPDATE Productservice SET quantity=%s WHERE Productserviceid=%s'
+        qntval=(valuz1[4],idgettingprdt)
+        fbcursor.execute(qntsql,qntval)
+        fbilldb.commit()
+
+        # for record in tree10.get_children():
+        #   tree10.delete(record)
+        # tree10.delete(tree10.get_children())
+
+        fbcursor.execute("SELECT * FROM storingproduct ORDER BY orderid DESC LIMIT 1")
+        bol = fbcursor.fetchone()[0]
+        # print(bol)
+        # print(frck)
+
+        if bol==frck:        
+         for record in tree10.get_children():
+          tree10.delete(record)
+         m="SELECT * FROM storingproduct  WHERE orderid=%s"
+         i=(frck,)
+         fbcursor.execute(m,i)
+         panrefrdata = fbcursor.fetchall()
+         az=0
+         countp = 0
+         for i in panrefrdata:
+           tree10.insert(parent='', index='end', iid=i, text='', values=(i[4],i[6],i[7],i[9],i[22],i[10],i[12],(i[9]*i[22])))
+
+           az+=(i[9]*i[22])
+         countp += 1
+         pricecol1.config(text=az)
+        else:
+          pass
         edit_window.quit()
         edit_window.destroy()
     
     edit_window.bind('<Return>', value_assignment )
+    
+
 
     B1 = tk.Button(edit_window, text=" Okay ")
     B1.bind('<Button-1>',value_assignment)
     B1.place(x=70,y=130)
+    
     
     B2 = tk.Button(edit_window, text="Cancel", command = edit_window.destroy).place(x=276,y=130)
     edit_window.mainloop()
@@ -1097,16 +1475,19 @@ def create():
   shape1 = tk.IntVar()
   #tracks both col , row on mouse click
   def tree_click_handler(event):
+      global cola
       cur_item = tree10.item(tree10.focus())
-      col = tree10.identify_column(event.x)[1:]
+      cola = tree10.identify_column(event.x)[1:]
       rowid = tree10.identify_row(event.y)[1:]
+     
+      # print(rowid)
       #updates list
-      shape1.set(col)
+      shape1.set(cola)
       try:
-          x,y,w,h = tree10.bbox('I'+rowid,'#'+col)
+          x,y,w,h = tree10.bbox('I'+rowid,'#'+cola)
       except:pass
       #tree.tag_configure("highlight", background="yellow")
-      return(col)
+      return(cola)
 
   #code linked to event    
   tree10.bind('<ButtonRelease-1>', tree_click_handler)
@@ -1125,9 +1506,7 @@ def create():
           tree10.item(selected_item, values= temp)
       except: pass
 
-
-    
-    
+   
   #binding allows to edit on screen double click
   tree10.bind('<Double-Button-1>' , edit)
 
@@ -1174,14 +1553,14 @@ def create():
   xtracstnme=ttk.Combobox(labelframe1, value=excodata,width=20)
   xtracstnme.place(x=115,y=5)
   rate=Label(labelframe1,text="Discount rate").place(x=370,y=5)
-  dscntrte=Spinbox(labelframe1,width=6,  from_=0, to=100, font="italic 10")
-  dscntrte.place(x=460,y=5)
+  dscntrtecr=Spinbox(labelframe1,width=6,  from_=0, to=100, font="italic 10")
+  dscntrtecr.place(x=460,y=5)
   cost2=Label(labelframe1,text="Extra cost").place(x=35,y=35)
-  xtracst=Entry(labelframe1,width=10)
-  xtracst.place(x=115,y=35)
+  xtracstcr=Entry(labelframe1,width=10)
+  xtracstcr.place(x=115,y=35)
   tax=Label(labelframe1,text="Tax1").place(x=420,y=35)
-  taxx=Entry(labelframe1,width=7)
-  taxx.place(x=460,y=35)
+  taxxcr=Entry(labelframe1,width=7)
+  taxxcr.place(x=460,y=35)
 ##
   sql = "select template from Orders"
   fbcursor.execute(sql,)
@@ -1224,10 +1603,10 @@ def create():
   text=Label(documentFrame,text="Attached documents or image files.If you attach large email then email taken long time to send").place(x=50,y=10)
   cusventtree=ttk.Treeview(documentFrame, height=5)
   cusventtree["columns"]=["1","2","3"]
-  cusventtree.column("#0", width=20)
-  cusventtree.column("1", width=250)
-  cusventtree.column("2", width=250)
-  cusventtree.column("2", width=200)
+  cusventtree.column("#0", width=20, anchor="center")
+  cusventtree.column("1", width=250, anchor="center")
+  cusventtree.column("2", width=250, anchor="center")
+  cusventtree.column("2", width=200, anchor="center")
   cusventtree.heading("#0",text="", anchor=W)
   cusventtree.heading("1",text="Attach to Email")
   cusventtree.heading("2",text="Filename")
@@ -1238,33 +1617,89 @@ def create():
   fir4Frame=Frame(pop,height=190,width=210,bg="#f5f3f2")
   fir4Frame.place(x=740,y=520)
   summaryfrme = LabelFrame(fir4Frame,text="Summary",font=("arial",15))
-  summaryfrme.place(x=0,y=0,width=200,height=170)
+  summaryfrme.place(x=0,y=0,width=200,height=140)
   discount=Label(summaryfrme, text="Discount").place(x=0 ,y=0)
-  discount1=Label(summaryfrme, text="$0.00").place(x=130 ,y=0)
+  discount1=Label(summaryfrme, text="0.00").place(x=130 ,y=0)
   sub=Label(summaryfrme, text="Subtotal").place(x=0 ,y=21)
-  sub1=Label(summaryfrme, text="$0.00").place(x=130 ,y=21)
+  sub001=Label(summaryfrme, text="0.00").place(x=130 ,y=21)
   tax=Label(summaryfrme, text="Tax1").place(x=0 ,y=42)
-  tax1=Label(summaryfrme, text="$0.00").place(x=130 ,y=42)
+  tax001=Label(summaryfrme, text="0.00").place(x=130 ,y=42)
   cost=Label(summaryfrme, text="Extra cost").place(x=0 ,y=63)
-  cost=Label(summaryfrme, text="$0.00").place(x=130 ,y=63)
+  cost001=Label(summaryfrme, text="0.00").place(x=130 ,y=63)
   order=Label(summaryfrme, text="Order total").place(x=0 ,y=84)
-  order1=Label(summaryfrme, text="$0.00").place(x=130 ,y=84)
-  total=Label(summaryfrme, text="Total paid").place(x=0 ,y=105)
-  total1=Label(summaryfrme, text="$0.00").place(x=130 ,y=105)
-  balance=Label(summaryfrme, text="Balance").place(x=0 ,y=126)
-  balance1=Label(summaryfrme, text="$0.00").place(x=130 ,y=126)
+  order001=Label(summaryfrme, text="0.00").place(x=130 ,y=84)
+  # total=Label(summaryfrme, text="Total paid").place(x=0 ,y=105)
+  # total1=Label(summaryfrme, text="$0.00").place(x=130 ,y=105)
+  # balance=Label(summaryfrme, text="Balance").place(x=0 ,y=126)
+  # balance1=Label(summaryfrme, text="$0.00").place(x=130 ,y=126)
 
   fir5Frame=Frame(pop,height=38,width=210)
   fir5Frame.place(x=735,y=485)
-  btndown=Button(fir5Frame, compound="left", text="Line Down").place(x=75, y=0)
-  btnup=Button(fir5Frame, compound="left", text="Line Up").place(x=150, y=0)
+
+  def recalcultncr():
+   global ot1v
+  #  global discount1,sub1,tax1,cost1z,order1
+  #  totalpriceinput.config(text="")
+   ttlprzinptcr=pricecol1.cget("text")
+   ratediscntcr=dscntrtecr.get()
+   xtaxcr=taxxcr.get()
+   cstxtracr=xtracstcr.get()
+   print(ttlprzinptcr,ratediscntcr,xtaxcr,cstxtracr)
+
+
+   sdd=round(int(ratediscntcr),3)
+   pldd=int(ttlprzinptcr)
+   p=round(pldd, 4)
+   dsctedd=(sdd*pldd)/100
+   dscdd=round(dsctedd, 4)
+   discount=Label(summaryfrme, text=str(sdd)+"% Discount").place(x=0 ,y=0)
+   discount1cr=Label(summaryfrme,text='Rs. '+str(dscdd))
+   discount1cr.place(x=130 ,y=0)
+
+   sbtotlhee=p-dscdd
+   subtotl=round(sbtotlhee, 4)
+   sub=Label(summaryfrme, text="Subtotal").place(x=0 ,y=21)
+   sub100cr=Label(summaryfrme, text='Rs. '+str(subtotl))
+   sub100cr.place(x=130 ,y=21)
+
+   taxval91=int(xtaxcr)
+   tax1dsplay=(taxval91*subtotl)/100
+   taxvalu=round(tax1dsplay,2)
+   tax=Label(summaryfrme, text="Tax1").place(x=0 ,y=42)
+   tax100cr=Label(summaryfrme, text='Rs. '+str(taxvalu))
+   tax100cr.place(x=130 ,y=42)
+
+   xtracstvaluzz=int(cstxtracr)
+   xtra1cst=round(xtracstvaluzz, 4)
+   cost=Label(summaryfrme, text="Extra cost").place(x=0 ,y=63)
+   cost100cr=Label(summaryfrme, text='Rs. '+str(xtra1cst))
+   cost100cr.place(x=130 ,y=63)
+ 
+   otherttlval=subtotl+taxvalu+xtra1cst
+   ot1v=round(otherttlval, 4)
+   order=Label(summaryfrme, text="Order total").place(x=0 ,y=84)
+   order100cr=Label(summaryfrme, text='Rs. '+str(ot1v))
+   order100cr.place(x=130 ,y=84)
+
+   itemdot1=frck
+   ordttl=ot1v
+
+   sqlordttl = "INSERT INTO Orders WHERE Order_total=%s WHERE orderid = %s"
+   valqordttl = (ordttl,itemdot1, )
+   fbcursor.execute(sqlordttl, valqordttl,)
+   fbilldb.commit()
+
+
+  recalbtn1=Button(fir5Frame, compound="left", text="Show Summary",command=recalcultncr)
+  recalbtn1.place(x=75, y=0,height=35)
+  # btnup=Button(fir5Frame, compound="left", text="Line Up").place(x=150, y=0)
 
 
 
 
 #printselected order
   
-def printsele():
+# def printsele():
   # subprocess.Popen('C:\\Windows\\System32\\spoolsv.exe')
     
     # # Ask for file (Which you want to print)
@@ -1277,115 +1712,116 @@ def printsele():
     #     # Print Hard Copy of File
     #     win32api.ShellExecute(0, "print", file_to_print, None, ".", 0)
     #     Button(root, text="Print FIle", command=printsele).pack()
-  def property1():
-    propert=Toplevel()
-    propert.title("Microsoft Print To PDF Advanced Document Settings")
-    propert.geometry("670x500+240+150")
 
-    def property2():
-      propert1=Toplevel()
-      propert1.title("Microsoft Print To PDF Advanced Document Settings")
-      propert1.geometry("670x500+240+150")
+  # def property1():
+  #   propert=Toplevel()
+  #   propert.title("Microsoft Print To PDF Advanced Document Settings")
+  #   propert.geometry("670x500+240+150")
 
-      name=Label(propert1, text="Microsoft Print To PDF Advanced Document Settings").place(x=10, y=5)
-      paper=Label(propert1, text="Paper/Output").place(x=30, y=35)
-      size=Label(propert1, text="Paper size").place(x=55, y=65)
-      n = StringVar()
-      search = ttk.Combobox(propert1, width = 15, textvariable = n )
-      search['values'] = ('letter')
-      search.place(x=150,y=65)
-      search.current(0)
-      copy=Label(propert1, text="Copy count:").place(x=55, y=95)
+  #   def property2():
+  #     propert1=Toplevel()
+  #     propert1.title("Microsoft Print To PDF Advanced Document Settings")
+  #     propert1.geometry("670x500+240+150")
 
-      okbtn=Button(propert1,compound = LEFT,image=tick , text="Ok", width=60).place(x=460, y=450)
-      canbtn=Button(propert1,compound = LEFT,image=cancel, text="Cancel", width=60).place(x=570, y=450)
+  #     name=Label(propert1, text="Microsoft Print To PDF Advanced Document Settings").place(x=10, y=5)
+  #     paper=Label(propert1, text="Paper/Output").place(x=30, y=35)
+  #     size=Label(propert1, text="Paper size").place(x=55, y=65)
+  #     n = StringVar()
+  #     search = ttk.Combobox(propert1, width = 15, textvariable = n )
+  #     search['values'] = ('letter')
+  #     search.place(x=150,y=65)
+  #     search.current(0)
+  #     copy=Label(propert1, text="Copy count:").place(x=55, y=95)
+
+  #     okbtn=Button(propert1,compound = LEFT,image=tick , text="Ok", width=60).place(x=460, y=450)
+  #     canbtn=Button(propert1,compound = LEFT,image=cancel, text="Cancel", width=60).place(x=570, y=450)
       
       
 
 
-    style = ttk.Style()
-    style.theme_use('default')
-    style.configure('TNotebook.Tab', background="#999999", padding=5)
-    property_Notebook = ttk.Notebook(propert)
-    property_Frame = Frame(property_Notebook, height=500, width=670)
-    property_Notebook.add(property_Frame, text="Layout")
-    property_Notebook.place(x=0, y=0)
+  #   style = ttk.Style()
+  #   style.theme_use('default')
+  #   style.configure('TNotebook.Tab', background="#999999", padding=5)
+  #   property_Notebook = ttk.Notebook(propert)
+  #   property_Frame = Frame(property_Notebook, height=500, width=670)
+  #   property_Notebook.add(property_Frame, text="Layout")
+  #   property_Notebook.place(x=0, y=0)
 
-    name=Label(property_Frame, text="Orientation:").place(x=10, y=5)
-    n = StringVar()
-    search = ttk.Combobox(property_Frame, width = 23, textvariable = n )
-    search['values'] = ('Portrait')
-    search.place(x=10,y=25)
-    search.current(0)
+  #   name=Label(property_Frame, text="Orientation:").place(x=10, y=5)
+  #   n = StringVar()
+  #   search = ttk.Combobox(property_Frame, width = 23, textvariable = n )
+  #   search['values'] = ('Portrait')
+  #   search.place(x=10,y=25)
+  #   search.current(0)
 
-    text=Text(property_Frame,width=50).place(x=250, y=5,height=350)
+  #   text=Text(property_Frame,width=50).place(x=250, y=5,height=350)
 
-    btn=Button(property_Frame, text="Advanced",command=property2).place(x=550, y=380)
-    btn=Button(property_Frame,compound = LEFT,image=tick  ,text="OK", width=60,).place(x=430, y=420)
-    btn=Button(property_Frame,compound = LEFT,image=cancel , text="Cancel", width=60,).place(x=550, y=420)     
+  #   btn=Button(property_Frame, text="Advanced",command=property2).place(x=550, y=380)
+  #   btn=Button(property_Frame,compound = LEFT,image=tick  ,text="OK", width=60,).place(x=430, y=420)
+  #   btn=Button(property_Frame,compound = LEFT,image=cancel , text="Cancel", width=60,).place(x=550, y=420)     
 
 
     
-  if(False):
-      messagebox.showwarning("FBilling Revelution 2020", "Customer is required, Please select customer for this invoice\nbefore printing")
-  elif(False):
-      messagebox.showinfo("FBilling Revelution 2020", "Print job has been completed.")
-  else:
-      print1=Toplevel()
-      print1.title("Print")
-      print1.geometry("670x400+240+150")
+  # if(False):
+  #     messagebox.showwarning("FBilling Revelution 2020", "Customer is required, Please select customer for this invoice\nbefore printing")
+  # elif(False):
+  #     messagebox.showinfo("FBilling Revelution 2020", "Print job has been completed.")
+  # else:
+  #     print1=Toplevel()
+  #     print1.title("Print")
+  #     print1.geometry("670x400+240+150")
       
-      printerframe=LabelFrame(print1, text="Printer", height=80, width=650)
-      printerframe.place(x=7, y=5)      
-      name=Label(printerframe, text="Name:").place(x=10, y=5)
-      e1= ttk.Combobox(printerframe, width=40).place(x=70, y=5)
-      where=Label(printerframe, text="Where:").place(x=10, y=30)
-      printocheckvar=IntVar()
-      printochkbtn=Checkbutton(printerframe,text="Print to file",variable=printocheckvar,onvalue=1,offvalue=0,height=1,width=10)
-      printochkbtn.place(x=450, y=30)
-      btn=Button(printerframe, text="Properties", width=10,command=property1).place(x=540, y=5)
+  #     printerframe=LabelFrame(print1, text="Printer", height=80, width=650)
+  #     printerframe.place(x=7, y=5)      
+  #     name=Label(printerframe, text="Name:").place(x=10, y=5)
+  #     e1= ttk.Combobox(printerframe, width=40).place(x=70, y=5)
+  #     where=Label(printerframe, text="Where:").place(x=10, y=30)
+  #     printocheckvar=IntVar()
+  #     printochkbtn=Checkbutton(printerframe,text="Print to file",variable=printocheckvar,onvalue=1,offvalue=0,height=1,width=10)
+  #     printochkbtn.place(x=450, y=30)
+  #     btn=Button(printerframe, text="Properties", width=10,command=property1).place(x=540, y=5)
 
-      pageslblframe=LabelFrame(print1, text="Pages", height=140, width=320)
-      pageslblframe.place(x=10, y=90)
-      radvar=IntVar()
-      radioall=Radiobutton(pageslblframe, text="All", variable=radvar, value="1").place(x=10, y=5)
-      radiocpage=Radiobutton(pageslblframe, text="Current Page", variable=radvar, value="2").place(x=10, y=25)
-      radiopages=Radiobutton(pageslblframe, text="Pages: ", variable=radvar, value="3").place(x=10, y=45)
-      pagecountentry = Entry(pageslblframe, width=23).place(x=80, y=47)
-      pageinfolabl=Label(pageslblframe, text="Enter page numbers and/or page ranges\nseperated by commas. For example:1,3,5-12")
-      pageinfolabl.place(x=5, y=75)
+  #     pageslblframe=LabelFrame(print1, text="Pages", height=140, width=320)
+  #     pageslblframe.place(x=10, y=90)
+  #     radvar=IntVar()
+  #     radioall=Radiobutton(pageslblframe, text="All", variable=radvar, value="1").place(x=10, y=5)
+  #     radiocpage=Radiobutton(pageslblframe, text="Current Page", variable=radvar, value="2").place(x=10, y=25)
+  #     radiopages=Radiobutton(pageslblframe, text="Pages: ", variable=radvar, value="3").place(x=10, y=45)
+  #     pagecountentry = Entry(pageslblframe, width=23).place(x=80, y=47)
+  #     pageinfolabl=Label(pageslblframe, text="Enter page numbers and/or page ranges\nseperated by commas. For example:1,3,5-12")
+  #     pageinfolabl.place(x=5, y=75)
 
-      copylblframe=LabelFrame(print1, text="Copies", height=140, width=320)
-      copylblframe.place(x=335, y=90)
-      nolabl=Label(copylblframe, text="Number of copies").place(x=5, y=5)      
-      noentry = Entry(copylblframe, width=18).place(x=130, y=5)      
-      one=Frame(copylblframe, width=30, height=40, bg="black").place(x=20, y=40)     
-      two=Frame(copylblframe, width=30, height=40, bg="grey").place(x=15, y=45)     
-      three=Frame(copylblframe, width=30, height=40, bg="white").place(x=10, y=50)      
-      four=Frame(copylblframe, width=30, height=40, bg="black").place(x=80, y=40)      
-      fiv=Frame(copylblframe, width=30, height=40, bg="grey").place(x=75, y=45)      
-      six=Frame(copylblframe, width=30, height=40, bg="white").place(x=70, y=50)      
-      collatecheckvar=IntVar()
-      collatechkbtn=Checkbutton(copylblframe,text="Collate",variable=collatecheckvar,onvalue=1,offvalue=0,height=1,width=10)
-      collatechkbtn.place(x=130, y=70)
+  #     copylblframe=LabelFrame(print1, text="Copies", height=140, width=320)
+  #     copylblframe.place(x=335, y=90)
+  #     nolabl=Label(copylblframe, text="Number of copies").place(x=5, y=5)      
+  #     noentry = Entry(copylblframe, width=18).place(x=130, y=5)      
+  #     one=Frame(copylblframe, width=30, height=40, bg="black").place(x=20, y=40)     
+  #     two=Frame(copylblframe, width=30, height=40, bg="grey").place(x=15, y=45)     
+  #     three=Frame(copylblframe, width=30, height=40, bg="white").place(x=10, y=50)      
+  #     four=Frame(copylblframe, width=30, height=40, bg="black").place(x=80, y=40)      
+  #     fiv=Frame(copylblframe, width=30, height=40, bg="grey").place(x=75, y=45)      
+  #     six=Frame(copylblframe, width=30, height=40, bg="white").place(x=70, y=50)      
+  #     collatecheckvar=IntVar()
+  #     collatechkbtn=Checkbutton(copylblframe,text="Collate",variable=collatecheckvar,onvalue=1,offvalue=0,height=1,width=10)
+  #     collatechkbtn.place(x=130, y=70)
 
-      othrlblframe=LabelFrame(print1, text="Other", height=120, width=320)
-      othrlblframe.place(x=10, y=235)
-      printlb=Label(othrlblframe, text="Print").place(x=5, y=0)
-      dropprint = ttk.Combobox(othrlblframe, width=23).place(x=80, y=0)
-      orderlb=Label(othrlblframe, text="Order").place(x=5, y=25)
-      dropord = ttk.Combobox(othrlblframe, width=23).place(x=80, y=25)
-      duplexlb=Label(othrlblframe, text="Duplex").place(x=5, y=50)
-      droplex = ttk.Combobox(othrlblframe, width=23).place(x=80, y=50)
+  #     othrlblframe=LabelFrame(print1, text="Other", height=120, width=320)
+  #     othrlblframe.place(x=10, y=235)
+  #     printlb=Label(othrlblframe, text="Print").place(x=5, y=0)
+  #     dropprint = ttk.Combobox(othrlblframe, width=23).place(x=80, y=0)
+  #     orderlb=Label(othrlblframe, text="Order").place(x=5, y=25)
+  #     dropord = ttk.Combobox(othrlblframe, width=23).place(x=80, y=25)
+  #     duplexlb=Label(othrlblframe, text="Duplex").place(x=5, y=50)
+  #     droplex = ttk.Combobox(othrlblframe, width=23).place(x=80, y=50)
 
-      prmodelblframe=LabelFrame(print1, text="Print mode", height=120, width=320)
-      prmodelblframe.place(x=335, y=235)
-      dropscal = ttk.Combobox(prmodelblframe, width=30).place(x=5, y=5)
-      poslb=Label(prmodelblframe, text="Print on sheet").place(x=5, y=35)
-      droppos = ttk.Combobox(prmodelblframe, width=10).place(x=155, y=35)
+  #     prmodelblframe=LabelFrame(print1, text="Print mode", height=120, width=320)
+  #     prmodelblframe.place(x=335, y=235)
+  #     dropscal = ttk.Combobox(prmodelblframe, width=30).place(x=5, y=5)
+  #     poslb=Label(prmodelblframe, text="Print on sheet").place(x=5, y=35)
+  #     droppos = ttk.Combobox(prmodelblframe, width=10).place(x=155, y=35)
 
-      okbtn=Button(print1,compound = LEFT,image=tick , text="Ok", width=60).place(x=460, y=370)
-      canbtn=Button(print1,compound = LEFT,image=cancel, text="Cancel", width=60).place(x=570, y=370)
+  #     okbtn=Button(print1,compound = LEFT,image=tick , text="Ok", width=60).place(x=460, y=370)
+  #     canbtn=Button(print1,compound = LEFT,image=cancel, text="Cancel", width=60).place(x=570, y=370)
       
 
 
@@ -1627,8 +2063,6 @@ def edit():
   # psdata = fbcursor.fetchone()
   # print(psdata)
 
-
-
     
 
         
@@ -1760,8 +2194,7 @@ def edit():
           
                 
 
-      # enter=Label(cuselection, text="Enter filter text").place(x=5, y=10)
-      # e1=Entry(cuselection, width=20).place(x=110, y=10)
+
       # text=Label(cuselection, text="Filtered column").place(x=340, y=10)
       # e2=Entry(cuselection, width=20).place(x=450, y=10)
 
@@ -1771,17 +2204,45 @@ def edit():
       global cusventtree1
       cusventtree1=ttk.Treeview(cuselection, height=27)
       cusventtree1["columns"]=["1","2","3","4"]
-      cusventtree1.column("#0", width=35)
-      cusventtree1.column("1", width=160)
-      cusventtree1.column("2", width=160)
-      cusventtree1.column("3", width=140)
-      cusventtree1.column("4", width=140)
+      cusventtree1.column("#0", width=35, anchor="center")
+      cusventtree1.column("1", width=160, anchor="center")
+      cusventtree1.column("2", width=160, anchor="center")
+      cusventtree1.column("3", width=140, anchor="center")
+      cusventtree1.column("4", width=140, anchor="center")
       cusventtree1.heading("#0",text="")
       cusventtree1.heading("1",text="Customer/Ventor ID")
       cusventtree1.heading("2",text="Customer/Ventor Name")
       cusventtree1.heading("3",text="Tel.")
       cusventtree1.heading("4",text="Contact Person")
       cusventtree1.place(x=5, y=45)
+      def filt():
+      # global filttxt 
+   
+       filtr = filttxt.get()
+       for record in cusventtree1.get_children():
+         cusventtree1.delete(record)
+  
+       sqlcusven = "SELECT * FROM Customer WHERE businessname=%s"
+       valcusven = (filtr, )
+       fbcursor.execute(sqlcusven, valcusven)
+       records = fbcursor.fetchall()
+       print(records)
+
+  
+       count=0
+       for i in records:
+         if True:
+          cusventtree1.insert(parent='', index='end', iid=i, text='', values=(i[0],i[4],i[10],i[8]))  
+         else:
+           pass
+       count += 1
+
+    # global filttxt
+      enter=Label(cuselection, text="Enter filter text").place(x=5, y=10)
+      filttxt=Entry(cuselection, width=20)
+      filttxt.place(x=110, y=10)
+      fltrbutton=Button(cuselection,text = 'Click Here',command=filt)
+      fltrbutton.place(x=236,y=7,height=25,width=70)
 
       
       fbcursor.execute('SELECT * FROM Customer;') 
@@ -1800,9 +2261,70 @@ def edit():
       ctegorytree.heading("1",text="View filter by category", anchor=CENTER)
       ctegorytree.place(x=660, y=45)
 
+
+
+      def items_selected(event):
+        selected_indices = listbox.curselection()
+        selected_filter = ",".join([listbox.get(i) for i in selected_indices])
+
+        sqloooo = 'SELECT * FROM Productservice'
+        fbcursor.execute(sqloooo)
+        pandsdatazbn = fbcursor.fetchall()
+        print(pandsdatazbn)
+
+      #   psql = "select * from Productservice where serviceornot = %s"
+      #   val = ('Not Service', )
+      #   fbcursor.execute(psql, val)
+      #   pdata = fbcursor.fetchall()
+    
+      #   ssql = "select * from Productservice where serviceornot = %s"
+      #   val = ('Service', )
+      #   fbcursor.execute(ssql, val)
+      #   sdata = fbcursor.fetchall()
+
+        if selected_filter == "View all records":
+          for record in edtcusventtree.get_children():
+            edtcusventtree.delete(record)
+          countp = 0
+          for i in pandsdatazbn:
+            edtcusventtree.insert(parent='', index='end', iid=countp, text='', values=(i[2],i[4],i[7],i[12],i[13]))
+          countp += 1
+      #   elif selected_filter == "View all products":
+      #     for record in edtcusventtree.get_children():
+      #       edtcusventtree.delete(record)
+      #     countp = 0
+      #     for i in pdata:
+      #       edtcusventtree.insert(parent='', index='end', iid=countp, text='', values=(i[2],i[4],i[7],i[12],i[13]))
+      #     countp += 1
+      #   else: 
+      #     if selected_filter == "View all services":
+      #       for record in edtcusventtree.get_children():
+      #         edtcusventtree.delete(record)
+      #       countp = 0
+      #       for i in sdata:
+      #         edtcusventtree.insert(parent='', index='end', iid=countp, text='', values=(i[2],i[4],i[7],i[12],i[13]))
+      #       countp += 1
+      #   # mydb.close()
+  
+      listbox = Listbox(cuselection,height = 33,  
+                            width = 40,  
+                            bg = "white",
+                            activestyle = 'dotbox',  
+                            fg = "black",
+                            highlightbackground="white")
+     
+      listbox.insert(0, "                               View all records")
+      # listbox.insert(1, "                               View all products")
+      # listbox.insert(2, "                               View all services")
+      listbox.place(x=660,y=65,)
+      listbox.bind('<<ListboxSelect>>', items_selected)
+
+
+      # scrollbar = Scrollbar(cuselection)
+      # scrollbar.place(x=640, y=45, height=560)
+      # scrollbar.config( command=tree.yview )
       scrollbar = Scrollbar(cuselection)
-      scrollbar.place(x=640, y=45, height=560)
-      scrollbar.config( command=tree.yview )
+      scrollbar.place(x=1016+300+25, y=120, height=280+20)
 
       btn1=Button(cuselection,compound = LEFT,image=tick ,text="ok",command=treefthcng1, width=60).place(x=15, y=610)
       btn1=Button(cuselection,compound = LEFT,image=tick,text="Edit selected customer", width=150,command=create1).place(x=250, y=610)
@@ -1838,15 +2360,15 @@ def edit():
 
 
 
-        tab1 = ttk.Frame(tabControl)
+        tabsb11 = ttk.Frame(tabControl)
         tab2 = ttk.Frame(tabControl)
       
-        tabControl.add(tab1,compound = LEFT, text ='Product/Service')
+        tabControl.add(tabsb11,compound = LEFT, text ='Product/Service')
         tabControl.add(tab2,compound = LEFT, text ='Product Image')
       
         tabControl.pack(expand = 1, fill ="both")
       
-        innerFrame = Frame(tab1,bg="#f5f3f2", relief=GROOVE)
+        innerFrame = Frame(tabsb11,bg="#f5f3f2", relief=GROOVE)
         innerFrame.pack(side="top",fill=BOTH)
 
         Customerlabelframe = LabelFrame(innerFrame,text="Product/Service",width=580,height=485)
@@ -1985,21 +2507,17 @@ def edit():
 
 
 
-      
-                      
-      # enter=Label(newselection, text="Enter filter text").place(x=5, y=10)
-      # e1=Entry(newselection, width=20).place(x=110, y=10)
       # text=Label(newselection, text="Filtered column").place(x=340, y=10)
       # e2=Entry(newselection, width=20).place(x=450, y=10)
-
+      global edtcusventtree
       edtcusventtree=ttk.Treeview(newselection, height=27)
       edtcusventtree["columns"]=["1","2","3", "4","5"]
-      edtcusventtree.column("#0", width=35)
-      edtcusventtree.column("1", width=160)
-      edtcusventtree.column("2", width=160)
-      edtcusventtree.column("3", width=140)
-      edtcusventtree.column("4", width=70)
-      edtcusventtree.column("5", width=70)
+      edtcusventtree.column("#0", width=35, anchor="center")
+      edtcusventtree.column("1", width=160, anchor="center")
+      edtcusventtree.column("2", width=160, anchor="center")
+      edtcusventtree.column("3", width=140, anchor="center")
+      edtcusventtree.column("4", width=70, anchor="center")
+      edtcusventtree.column("5", width=70, anchor="center")
       edtcusventtree.heading("#0",text="")
       edtcusventtree.heading("1",text="ID/SKU")
       edtcusventtree.heading("2",text="Product/Service Name")
@@ -2007,10 +2525,42 @@ def edit():
       edtcusventtree.heading("4",text="Service")
       edtcusventtree.heading("5",text="Stock")
       edtcusventtree.place(x=5, y=45)
+      def filtm():
+      # global filttxt 
+   
+       filtr = filttxt.get()
+       for record in edtcusventtree.get_children():
+         edtcusventtree.delete(record)
+  
+       sqlcusven = "SELECT * FROM Productservice WHERE name=%s"
+       valcusven = (filtr, )
+       fbcursor.execute(sqlcusven, valcusven)
+       records = fbcursor.fetchall()
+       print(records)
+
+  
+       count=0
+       for i in records:
+         if True:
+          edtcusventtree.insert(parent='', index='end', iid=i, text='', values=(i[2],i[4],i[7],i[12],i[13]))  
+         else:
+           pass
+       count += 1
+
+    # global filttxt
+      enter=Label(newselection, text="Enter filter text").place(x=5, y=10)
+      filttxt=Entry(newselection, width=20)
+      filttxt.place(x=110, y=10)
+      fltrbutton=Button(newselection,text = 'Go',command=filtm)
+      fltrbutton.place(x=236,y=7,height=25,width=60)
+      fltrbutton=Button(newselection,text = 'Back',command=filtm)
+      fltrbutton.place(x=296,y=7,height=25,width=70)
+      
 
 
       def cancelnewselection():
        newselection.destroy()
+       
       global prstree
       def selectp2():
           selected = edtcusventtree.focus()
@@ -2022,12 +2572,33 @@ def edit():
           totalpriceinput=0
           j = 0
           for i in fbcursor:
-            vwedttree1.insert(parent='', index='end', iid=i, text='', values=(i[2],i[4],i[5],i[7],i[13],i[8],i[10],(i[7]*i[13])))
+            vwedttree1.insert(parent='', index='end', iid=i, text='', values=(i[2],i[4],i[5],i[7],1,i[8],i[10],(i[7]*1)))
             for line in vwedttree1.get_children():
               idsave1=vwedttree1.item(line)['values'][7]
               totalpriceinput+=idsave1
-              j += 1
-              pricecol.config(text=totalpriceinput)
+          j += 1
+          pricecol.config(text=totalpriceinput)
+
+          valu10= edtcusventtree.item(selected)["values"][0]
+          sqllll = "SELECT * FROM productservice  WHERE productserviceid= %s"
+          r=(valu10,)
+          fbcursor.execute(sqllll,r)
+          child=fbcursor.fetchone()
+
+          sql21= 'INSERT INTO storingproduct(Productserviceid,orderid,sku,category,name,description,status,unitprice,peices,cost,taxable,priceminuscost,serviceornot,stock,stocklimit,warehouse,privatenote,quantity) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)'
+          vatree=(child[0],osdata[0],child[2],child[3],child[4],child[5],child[6],child[7],child[8],child[9],child[10],child[11],child[12],child[13],child[14],child[15],child[16],1)
+          fbcursor.execute(sql21,vatree,)
+          fbilldb.commit()
+
+
+          # qntadd= 'UPDATE storingproduct SET quantity=%s WHERE Productserviceid=%s AND orderid=%s'
+          # avngr=int(1)
+          # qntvaladd=(avngr,child[0],osdata[0])
+          # fbcursor.execute(qntadd,qntvaladd)
+          # fbilldb.commit()
+
+
+      
 
           newselection.destroy()
 
@@ -2070,12 +2641,73 @@ def edit():
       ctegorytree.heading("#0",text="", anchor=W)
       ctegorytree.heading("1",text="View filter by category", anchor=CENTER)
       ctegorytree.place(x=660, y=45)
+      ctegorytree.column("#0", width=35, minwidth=20)
 
+      def items_selected(event):
+        selected_indices = listbox.curselection()
+        selected_filter = ",".join([listbox.get(i) for i in selected_indices])
+        mydb = mysql.connector.connect(host='localhost', user='root', password='', port='3306', database='fbillingsintgrtd')
+        # fbcursor = fbcursor()
+
+        sqloooo = 'SELECT * FROM Productservice'
+        fbcursor.execute(sqloooo)
+        pandsdatazbn = fbcursor.fetchall()
+        print(pandsdatazbn)
+
+
+
+        if selected_filter == "                               View all records":
+          # sqloooo = 'SELECT * FROM Productservice'
+          # fbcursor.execute(sqloooo)
+          # pandsdatazbn = fbcursor.fetchall()
+          for record in edtcusventtree.get_children():
+           edtcusventtree.delete(record)
+          countp = 0
+          for i in pandsdatazbn:
+            edtcusventtree.insert(parent='', index='end', iid=countp, text='', values=(i[2],i[4],i[7],i[12],i[13]))
+          countp += 1
+# def ftr(event):
+#   filt = dropordr.get()
+#   for record in ordtree.get_children():
+#     ordtree.delete(record)
+    
+#   sql = "select * from orders where category = %s"
+#   val = (filt, )
+#   fbcursor.execute(sql, val)
+#   records = fbcursor.fetchall()
+  
+#   count=0
+#   for i in records:
+#     if True:
+#       ordtree.insert(parent='', index='end', iid=i, text='', values=(' ',i[0], i[1], i[2], i[3], i[4],i[5], i[6], i[7], i[8], i[9], i[10]))
+#     else:
+#       pass
+#   count += 1
+# sql = "SELECT DISTINCT category FROM orders"
+# fbcursor.execute(sql,)
+# rec = fbcursor.fetchall()
+  
+      listbox = Listbox(newselection,height = 33,  
+                            width = 40,  
+                            bg = "white",
+                            activestyle = 'dotbox',  
+                            fg = "black",
+                            highlightbackground="white")
+      
+      listbox.insert(0, "                               View all records")
+      # listbox.insert(1, "                               View all products")
+      # listbox.insert(2, "                               View all services")
+      listbox.place(x=660,y=65,)
+      listbox.bind('<<ListboxSelect>>', items_selected)
+
+  
       
 
+      # scrollbar = Scrollbar(newselection)
+      # scrollbar.place(x=640, y=45, height=560)
+      # scrollbar.config( command=tree.yview )
       scrollbar = Scrollbar(newselection)
-      scrollbar.place(x=640, y=45, height=560)
-      scrollbar.config( command=tree.yview )
+      scrollbar.place(x=1016+300+25, y=120, height=280+20)
     
 
       btn1=Button(newselection,compound = LEFT,image=tick ,text="ok",command=selectp2,width=60).place(x=15, y=610)
@@ -2173,9 +2805,47 @@ def edit():
     
     #delete line item  
     def delete2():
-      selected_item = vwedttree1.selection()[0]
-      print=(selected_item)
-      vwedttree1.delete(selected_item) 
+        # selected_item = vwedttree1.selection()[0]
+        # print(selected_item)
+        # vwedttree1.delete(selected_item)
+
+        itemid = vwedttree1.item(vwedttree1.focus())["values"][0]
+        print(itemid,)
+        dlting=osdata[0]
+        sql = 'DELETE FROM storingproduct WHERE orderid=%s AND Productserviceid=%s'
+        val = (dlting,itemid,)
+        fbcursor.execute(sql, val)
+        fbilldb.commit()
+        vwedttree1.delete(vwedttree1.selection()[0])
+
+        for record in vwedttree1.get_children():
+          vwedttree1.delete(record)
+        
+        sql = "SELECT * FROM storingproduct WHERE orderid= %s"
+        i=(dlting,)
+        fbcursor.execute(sql,i)
+    
+        a=0
+        j = 0
+        for i in fbcursor:
+          vwedttree1.insert(parent='', index='end', iid=i, text='', values=(i[4],i[6],i[7],i[9],i[22],i[10],i[12],(i[9]*i[22])))
+          for line in vwedttree1.get_children():
+              idsave=vwedttree1.item(line)['values'][7]
+          a+=idsave
+        j += 1
+        pricecol.config(text=a)
+        # vwedttree1.delete(vwedttree1.selection()[0])
+        # messdel = messagebox.askyesno("Delete Product", "Are you sure to delete this Product?")
+        # if messdel == True:
+        #  itemidz = vwedttree1.item(vwedttree1.focus())["values"][0]
+        # sqlstrngprdct='DELETE FROM storingproduct WHERE orderid=%s'
+        # valstpr = (selected_item,)
+        # fbcursor.execute(sqlstrngprdct, valstpr)
+        # fbilldb.commit()
+
+        # else:
+        #   pass
+  
   except:
     try:
       pop.destroy()
@@ -2184,20 +2854,20 @@ def edit():
       messagebox.showerror('F-Billing Revolution', 'Select a record to edit.') 
 
   #delete orders  
-  def dele():
-    delmess = messagebox.askyesno("Delete Order", "Are you sure to delete this Order?")
-    messagebox.showerror("F-Billing Revolution","Customer is required,please select customer before deleting line item .")
+  # def dele():
+  #   delmess = messagebox.askyesno("Delete Order", "Are you sure to delete this Order?")
+  #   messagebox.showerror("F-Billing Revolution","Customer is required,please select customer before deleting line item .")
 
-    if delmess == True:
-      itemid = ordtree.item(ordtree.focus())["values"][1]
-      print(itemid,)
-      sql = 'DELETE FROM Orders WHERE orderid=%s'
-      val = (itemid,)
-      fbcursor.execute(sql, val)
-      fbilldb.commit()
-      ordtree.delete(ordtree.selection()[0])
-    else:
-      pass  
+  #   if delmess == True:
+  #     itemid = ordtree.item(ordtree.focus())["values"][1]
+  #     print(itemid,)
+  #     sql = 'DELETE FROM Orders WHERE orderid=%s'
+  #     val = (itemid,)
+  #     fbcursor.execute(sql, val)
+  #     fbilldb.commit()
+  #     ordtree.delete(ordtree.selection()[0])
+  #   else:
+  #     pass  
 
 ######################################## UPDATING ORDER ##############################################
   def updateorder():
@@ -2213,7 +2883,7 @@ def edit():
     trmsin=e4.get()
     extracstnme=xtracstnme.get()
     discountrte=dscntrte.get()
-    extracst=xtracst.get()
+    extracst=extra.get()
     taax=taxx.get()
     tplts=tmplte.get()
     slzprzn=salesprsn.get()
@@ -2241,9 +2911,85 @@ def edit():
     fbcursor.execute(sql3,val2,)
     fbilldb.commit()
 
+    sqlup='UPDATE storingproduct SET orderid=%s WHERE orderid=%s'
+    valup=(ordrid,idorder,)
+    fbcursor.execute(sqlup,valup,)
+    fbilldb.commit()
+
+    for record in ordtree.get_children():
+      ordtree.delete(record)
+    fbcursor.execute("select *  from Orders")
+    pandsdata = fbcursor.fetchall()
+    countp = 0
+    for i in pandsdata:
+      ordtree.insert(parent='', index='end', iid=i, text='', values=(' ',i[0], i[1], i[2], i[3], i[4],i[5], i[6], i[7], i[8], i[9], i[10]))
+    countp += 1
+
+
+    ttlprzinpt=pricecol.cget("text")
+    ratediscnt=dscntrte.get()
+    xtax=taxx.get()
+    cstxtra=xtracst.get()
+    print(ttlprzinpt,ratediscnt,xtax,cstxtra)
+ 
+    sdd=round(int(ratediscnt),3)
+    pldd=ttlprzinpt
+    p=round(pldd, 4)
+    dsctedd=(sdd*pldd)/100
+    dscdd=round(dsctedd, 4)
+    discount=Label(summaryfrme, text=str(sdd)+"% Discount").place(x=0 ,y=0)
+    discount1=Label(summaryfrme,text='Rs. '+str(dscdd))
+    discount1.place(x=130 ,y=0)
+ 
+    sbtotlhee=p-dscdd
+    subtotl=round(sbtotlhee, 4)
+    sub=Label(summaryfrme, text="Subtotal").place(x=0 ,y=21)
+    sub100=Label(summaryfrme, text='Rs. '+str(subtotl))
+    sub100.place(x=130 ,y=21)
+ 
+    taxval91=int(xtax)
+    tax1dsplay=(taxval91*subtotl)/100
+    taxvalu=round(tax1dsplay,2)
+    tax=Label(summaryfrme, text="Tax1").place(x=0 ,y=42)
+    tax100=Label(summaryfrme, text='Rs. '+str(taxvalu))
+    tax100.place(x=130 ,y=42)
+ 
+    xtracstvaluzz=int(cstxtra)
+    xtra1cst=round(xtracstvaluzz, 4)
+    cost=Label(summaryfrme, text="Extra cost").place(x=0 ,y=63)
+    cost100=Label(summaryfrme, text='Rs. '+str(xtra1cst)).place(x=130 ,y=63)
+  
+    otherttlval=subtotl+taxvalu+xtra1cst
+    ot1v1=round(otherttlval, 4)
+    order=Label(summaryfrme, text="Order total").place(x=0 ,y=84)
+    order100=Label(summaryfrme, text='Rs. '+str(ot1v1)).place(x=130 ,y=84)
+ 
+    itemidot=ordrid
+    ordttl=ot1v1
+    for record in ordtree.get_children():
+      ordtree.delete(record)
+    sqlordttl = "UPDATE Orders SET Order_total=%s WHERE orderid = %s"
+    valqordttl = (ordttl,itemidot, )
+    fbcursor.execute(sqlordttl, valqordttl,)
+    fbilldb.commit()
+    fbcursor.execute('SELECT * FROM orders')
+
+    j = 0
+    for i in fbcursor:
+     ordtree.insert(parent='', index='end', iid=i, text='', values=(' ',i[0], i[1], i[2], i[3], i[4],i[5], i[6], i[7], i[8], i[9], i[10]))
+    
+     ordertotalinput=0
+     for line in ordtree.get_children():
+      idsave1=ordtree.item(line)['values'][9]
+      ordertotalinput += idsave1
+    j += 1
+    ordtotalrowcol.config(text=ordertotalinput)
+   
+    messagebox.showinfo('Successfully Updated','Successfully Updated')
+    
+
     for k in vwedttree1.get_children():
       pricetotl=vwedttree1.item(k)['values'][7]
-      print(pricetotl)
 
 
 
@@ -2271,10 +3017,10 @@ def edit():
   w = Canvas(firFrame, width=1, height=65, bg="#b3b3b3", bd=0)
   w.pack(side="left", padx=5)
 
-  prev= Button(firFrame,compound="top", text="Preview\nOrder",relief=RAISED, image=photo4,bg="#f5f3f2", fg="black", height=55, bd=1, width=55,command=previewline)
-  prev.pack(side="left", pady=3, ipadx=4)
+  # prev= Button(firFrame,compound="top", text="Preview\nOrder",relief=RAISED, image=photo5,bg="#f5f3f2", fg="black", height=55, bd=1, width=55,command=previewline)
+  # prev.pack(side="left", pady=3, ipadx=4)
 
-  prin= Button(firFrame,compound="top", text="Print \nOrder",relief=RAISED, image=photo5,bg="#f5f3f2", fg="black", height=55, bd=1, width=55,command=printsele)
+  prin= Button(firFrame,compound="top", text="Print \nOrder",relief=RAISED, image=photo4,bg="#f5f3f2", fg="black", height=55, bd=1, width=55,command=printsele)
   prin.pack(side="left", pady=3, ipadx=4)
 
   w = Canvas(firFrame, width=1, height=65, bg="#b3b3b3", bd=0)
@@ -2342,12 +3088,14 @@ def edit():
   sql = "select * from Orders where orderid = %s"
   val = (itemid, )
   fbcursor.execute(sql, val)
+  global osdata
   osdata = fbcursor.fetchone()
 ##
 
 
   order = Label(labelframe1, text="Order to").place(x=10,y=5)
-  cmb1 = ttk.Combobox(labelframe1,values=pdata,width=28)
+  # cmb1 = ttk.Combobox(labelframe1,values=pdata,width=28)
+  cmb1 = Entry(labelframe1,text=pdata,width=31)
   cmb1.place(x=80,y=5)
   cmb1.delete(0,'end')
   cmb1.insert(0, osdata[3])
@@ -2372,8 +3120,17 @@ def edit():
   adrs.place(x=402,y=30,height=70)
   adrs.delete('1.0','end')
   adrs.insert("1.0", osdata[18])
-
-  btn1=Button(labelframe1,width=3,height=2,compound = LEFT,text=">>").place(x=290, y=48)
+  
+##
+  def copying():
+    # shpdlt=spt1.get(osdata[17])
+    spt1.delete('1.0',END)
+    spt1.insert('1.0',osdata[3])
+    adrs.delete('1.0',END)
+    adrs.insert('1.0',osdata[16])
+##
+  btnedt=Button(labelframe1,width=3,height=2,compound = LEFT,text=">>",command=copying)
+  btnedt.place(x=290, y=48)
   
   labelframe2 = LabelFrame(fir1Frame,text="")
   labelframe2.place(x=10,y=130,width=640,height=42)
@@ -2397,25 +3154,32 @@ def edit():
   labelframe.place(x=652,y=5,width=290,height=170)
   order=Label(labelframe,text="Order#").place(x=5,y=5)
   # e1=Entry(labelframe,width=25).place(x=100,y=5,)
-  sctxt = Entry(labelframe,width=20)
+  sctxt = Entry(labelframe,width=25)
   sctxt.place(x=100,y=5,height=22)
   sctxt.delete(0,'end')
   sctxt.insert(0, osdata[0])
 
 
   orderdate=Label(labelframe,text="Order date").place(x=5,y=33)
-  e2=DateEntry(labelframe,width=20)
-  e2.place(x=150,y=33)
+  e2=DateEntry(labelframe,width=25)
+  e2.place(x=100,y=33)
   # sctxt = scrolledtext.Text(labelframe, undo=True,width=15)
   # sctxt.place(x=150,y=33,height=22)
   e2.delete(0,'end')
   e2.insert(0, osdata[1].strftime('%d/%m/%y'))
 
-  checkvarStatus5=IntVar()
-  duedate=Checkbutton(labelframe,variable = checkvarStatus5,text="Due date",onvalue =0 ,offvalue = 1).place(x=5,y=62)
+  def duecheckord2():
+   if checkvarStatus5.get()==0:
+     e3['state'] = DISABLED  
+   else:
+     e3['state'] = NORMAL
   
-  e3=DateEntry(labelframe,width=20)
-  e3.place(x=150,y=62)
+
+  checkvarStatus5=IntVar()
+  duedate=Checkbutton(labelframe,variable = checkvarStatus5,text="Due date",onvalue =1 ,offvalue = 0, command=duecheckord2).place(x=5,y=62)
+  
+  e3=DateEntry(labelframe,width=25)
+  e3.place(x=100,y=62)
   # sctxt = scrolledtext.Text(labelframe, undo=True,width=15)
   # sctxt.place(x=150,y=63,height=22)
   e3.delete(0,'end')
@@ -2434,19 +3198,19 @@ def edit():
   fir2Frame.pack(side="top", fill=X)
   listFrame = Frame(fir2Frame, bg="white", height=140,borderwidth=5,  relief=RIDGE)
 
-
+  global vwedttree1
   vwedttree1=ttk.Treeview(listFrame, show = "headings")
   vwedttree1.pack(side = 'top')
   vwedttree1["columns"]=["1","2","3","4","5","6","7","8"]
-  vwedttree1.column("#0", width=40)
-  vwedttree1.column("1", width=80)
-  vwedttree1.column("2", width=190)
-  vwedttree1.column("3", width=190)
-  vwedttree1.column("4", width=80)
-  vwedttree1.column("5", width=60)
-  vwedttree1.column("6", width=60)
-  vwedttree1.column("7", width=60)
-  vwedttree1.column("8", width=80)
+  vwedttree1.column("#0", width=40, anchor="center")
+  vwedttree1.column("1", width=80, anchor="center")
+  vwedttree1.column("2", width=190, anchor="center")
+  vwedttree1.column("3", width=190, anchor="center")
+  vwedttree1.column("4", width=80, anchor="center")
+  vwedttree1.column("5", width=60, anchor="center")
+  vwedttree1.column("6", width=60, anchor="center")
+  vwedttree1.column("7", width=60, anchor="center")
+  vwedttree1.column("8", width=80, anchor="center")
  
   vwedttree1.heading("#0")
   vwedttree1.heading("1",text="ID/SKU")
@@ -2464,19 +3228,19 @@ def edit():
   sql4='SELECT * FROM storingproduct WHERE orderid=%s'
   val10=(ba,)
   fbcursor.execute(sql4,val10)
+  totalpriceinput=0
   j = 0
   for i in fbcursor:
-    vwedttree1.insert(parent='', index='end', iid=i, text='', values=(i[4], i[6], i[7], i[9], i[15],i[10],i[12],(i[9]*i[15])))
-  j += 1
+    vwedttree1.insert(parent='', index='end', iid=i, text='', values=(i[4],i[6],i[7],i[9],i[22],i[10],i[12],(i[9]*i[22])))
+    # for line in vwedttree1.get_children():
+    #   idsave1=vwedttree1.item(line)['values'][7]
+    totalpriceinput+=(i[9]*i[22])
+    j += 1
+  pricecol.config(text=totalpriceinput)
+      
 
-  # def pricetotal():
-  #   fbcursor.execute('SELECT * FROM Productservice;')
-  #   j = 0
-  #   for i in fbcursor:
-  #     pricecola=((i[7]*i[13]))
-  #   j += 1
 
-  
+
 
   vwedttree1.pack(fill="both", expand=1)
   listFrame.pack(side="top", fill="both", padx=5, pady=3, expand=1)
@@ -2521,10 +3285,55 @@ def edit():
     
     def value_assignment(event):
         printing = edit_box.get()
+        # print(printing)
+        indexcolaa=int(indexcol)-1
         new_value.set(printing)
+        print(indexcol)
         #only destroy will not update the value (perhaps event keeps running in background)
         #quit allows event to stop n update value in tree but does not close the window in single click 
         #rather on dbl click shuts down entire app 
+
+        selected0 = vwedttree1.focus()
+        valuz1= vwedttree1.item(selected0)["values"]
+        idgettingprdt=valuz1[0]
+        valuz1[indexcolaa]=printing
+        print(valuz1)
+
+        sql2z0= 'UPDATE storingproduct SET sku=%s,name=%s,description=%s,unitprice=%s,stock=%s,peices=%s,taxable=%s WHERE orderid=%s AND Productserviceid=%s'
+        val0z1=(valuz1[0],valuz1[1],valuz1[2],valuz1[3],valuz1[4],valuz1[5],valuz1[6],osdata[0],idgettingprdt)
+        # dnz=(ordrid,sql2z0,)
+        print(val0z1)
+        fbcursor.execute(sql2z0,val0z1)
+        fbilldb.commit()
+
+        qntsql= 'UPDATE storingproduct SET quantity=%s WHERE Productserviceid=%s'
+        qntval=(valuz1[4],idgettingprdt)
+        fbcursor.execute(qntsql,qntval)
+        fbilldb.commit()
+
+
+        fbcursor.execute("SELECT * FROM storingproduct ORDER BY orderid DESC LIMIT 1")
+        bolo = fbcursor.fetchone()[0]
+        print(bolo)
+        print(osdata[0])
+
+        # if bolo==osdata[0]:        
+        for record in vwedttree1.get_children():
+         vwedttree1.delete(record)
+        m="SELECT * FROM storingproduct  WHERE orderid=%s"
+        i=(osdata[0],)
+        fbcursor.execute(m,i)
+        panrefrdata = fbcursor.fetchall()
+        az=0
+        countp = 0
+        for i in panrefrdata:
+          vwedttree1.insert(parent='', index='end', iid=i, text='', values=(i[4],i[6],i[7],i[9],i[22],i[10],i[12],(i[9]*i[22])))
+          az+=(i[9]*i[22])
+        countp += 1
+        pricecol.config(text=az)
+        # else:
+        #   pass
+
         edit_window.quit()
         edit_window.destroy()
     
@@ -2546,15 +3355,19 @@ def edit():
   #tracks both col , row on mouse click
   def tree_click_handler(event):
       cur_item = vwedttree1.item(vwedttree1.focus())
-      col = vwedttree1.identify_column(event.x)[1:]
+      # print(cur_item)
+      global indexcol
+      indexcol = vwedttree1.identify_column(event.x)[1:]
       rowid = vwedttree1.identify_row(event.y)[1:]
+      # print(indexcol)
+      # print(rowid)
       #updates list
-      shape1.set(col)
+      shape1.set(indexcol)
       try:
-          x,y,w,h = vwedttree1.bbox('I'+rowid,'#'+col)
+          x,y,w,h = vwedttree1.bbox('I'+rowid,'#'+indexcol)
       except:pass
       #tree.tag_configure("highlight", background="yellow")
-      return(col)
+      return(indexcol)
 
   #code linked to event    
   vwedttree1.bind('<ButtonRelease-1>', tree_click_handler)
@@ -2627,9 +3440,10 @@ def edit():
   dscntrte.delete(0,'end')
   dscntrte.insert(0, orbtdata[13])
 
-
+  
+  extra=IntVar()
   cost2=Label(labelframe1,text="Extra cost").place(x=35,y=35)
-  xtracst=Entry(labelframe1,width=10)
+  xtracst=Entry(labelframe1,width=10,textvariable=extra)
   xtracst.place(x=115,y=35)
   xtracst.delete(0,'end')
   xtracst.insert(0, orbtdata[10])
@@ -2720,189 +3534,436 @@ def edit():
   text=Label(documentFrame,text="Attached documents or image files.If you attach large email then email taken long time to send").place(x=50,y=10)
   cusventtree=ttk.Treeview(documentFrame, height=5)
   cusventtree["columns"]=["1","2","3"]
-  cusventtree.column("#0", width=20)
-  cusventtree.column("1", width=250)
-  cusventtree.column("2", width=250)
-  cusventtree.column("2", width=200)
+  cusventtree.column("#0", width=20, anchor="center")
+  cusventtree.column("1", width=250, anchor="center")
+  cusventtree.column("2", width=250, anchor="center")
+  cusventtree.column("2", width=200, anchor="center")
   cusventtree.heading("#0",text="", anchor=W)
   cusventtree.heading("1",text="Attach to Email")
   cusventtree.heading("2",text="Filename")
   cusventtree.heading("3",text="Filesize")  
   cusventtree.place(x=50, y=45)
   
-
+  global discount1,sub1,tax1,cost1z,order1
+  # ,total1,balance1
   fir4Frame=Frame(pop,height=190,width=210,bg="#f5f3f2")
   fir4Frame.place(x=740,y=520)
   summaryfrme = LabelFrame(fir4Frame,text="Summary",font=("arial",15))
-  summaryfrme.place(x=0,y=0,width=200,height=170)
-  # label=Label(summaryfrme,text=orbtdata[13]).place(x=0 ,y=0)
-  s=orbtdata[13]
-  # p=totalpriceinput
+  summaryfrme.place(x=0,y=0,width=200,height=140)
+  sl=orbtdata[13]
+  s=round(sl, 4)
+  pl=totalpriceinput
+  p=round(pl, 4)
+  dscte=(orbtdata[13]*p)/100
+  dsc=round(dscte, 4)
   discount=Label(summaryfrme, text=str(s)+"% Discount").place(x=0 ,y=0)
-  discount1=Label(summaryfrme,text='100/-')
+  discount1=Label(summaryfrme,text='Rs. '+str(dsc))
   discount1.place(x=130 ,y=0)
-  # def my_values_cal():
-  #   sum1 = 0.0
-  #   for Price in vwedttree1.get_Price():
-  #       sum1 += float(tree.item(Price, "values")[0])
-  #       sub.config(text=sum1)
-
-  #       print(sum1)
+  sbtotlhehe=p-dsc
+  sbtotl=round(sbtotlhehe, 4)
   sub=Label(summaryfrme, text="Subtotal").place(x=0 ,y=21)
-  sub1=Label(summaryfrme, text="$0.00").place(x=130 ,y=21)
+  sub1=Label(summaryfrme, text='Rs. '+str(sbtotl)).place(x=130 ,y=21)
+  taxval9=orbtdata[14]
+  tax1dsply=(taxval9*sbtotl)/100
+  taxval=round(tax1dsply,2)
   tax=Label(summaryfrme, text="Tax1").place(x=0 ,y=42)
-  tax1=Label(summaryfrme, text="$0.00").place(x=130 ,y=42)
+  tax1=Label(summaryfrme, text='Rs. '+str(taxval)).place(x=130 ,y=42)
+  xtracstvalzz=orbtdata[10]
+  xtracst10=round(xtracstvalzz, 4)
   cost=Label(summaryfrme, text="Extra cost").place(x=0 ,y=63)
-  cost=Label(summaryfrme, text="$0.00").place(x=130 ,y=63)
+  cost1z=Label(summaryfrme, text='Rs. '+str(orbtdata[10])).place(x=130 ,y=63)
+
+  othrttlval=sbtotl+taxval+xtracstvalzz
+  ov=round(othrttlval, 4)
   order=Label(summaryfrme, text="Order total").place(x=0 ,y=84)
-  order1=Label(summaryfrme, text="$0.00").place(x=130 ,y=84)
-  total=Label(summaryfrme, text="Total paid").place(x=0 ,y=105)
-  total1=Label(summaryfrme, text="$0.00").place(x=130 ,y=105)
-  balance=Label(summaryfrme, text="Balance").place(x=0 ,y=126)
-  balance1=Label(summaryfrme, text="$0.00").place(x=130 ,y=126)
+  order1=Label(summaryfrme, text='Rs. '+str(ov)).place(x=130 ,y=84)
+  # # totalpaid='10/-'
+  # total=Label(summaryfrme, text="Total paid").place(x=0 ,y=105)
+  # total1=Label(summaryfrme, text="0.0/-").place(x=130 ,y=105)
+  # # paidtotal=str(totalpaid)
+  # # balanz=othrttlval-paidtotal
+  # balance=Label(summaryfrme, text="Balance").place(x=0 ,y=126)
+  # balance1=Label(summaryfrme, text='Rs. '+str(ov)).place(x=130 ,y=126)
 
   fir5Frame=Frame(pop,height=38,width=210)
   fir5Frame.place(x=735,y=485)
-  btndown=Button(fir5Frame, compound="left", text="Line Down").place(x=75, y=0)
-  btnup=Button(fir5Frame, compound="left", text="Line Up").place(x=150, y=0)
+
+  def recalcultn():
+  #  global discount1,sub1,tax1,cost1z,order1
+  #  totalpriceinput.config(text="")
+   ttlprzinpt=pricecol.cget("text")
+   ratediscnt=dscntrte.get()
+   xtax=taxx.get()
+   cstxtra=xtracst.get()
+   print(ttlprzinpt,ratediscnt,xtax,cstxtra)
+
+   sdd=round(int(ratediscnt),3)
+   pldd=ttlprzinpt
+   p=round(pldd, 4)
+   dsctedd=(sdd*pldd)/100
+   dscdd=round(dsctedd, 4)
+   discount=Label(summaryfrme, text=str(sdd)+"% Discount").place(x=0 ,y=0)
+   discount1=Label(summaryfrme,text='Rs. '+str(dscdd))
+   discount1.place(x=130 ,y=0)
+
+   sbtotlhee=p-dscdd
+   subtotl=round(sbtotlhee, 4)
+   sub=Label(summaryfrme, text="Subtotal").place(x=0 ,y=21)
+   sub100=Label(summaryfrme, text='Rs. '+str(subtotl))
+   sub100.place(x=130 ,y=21)
+
+   taxval91=int(xtax)
+   tax1dsplay=(taxval91*subtotl)/100
+   taxvalu=round(tax1dsplay,2)
+   tax=Label(summaryfrme, text="Tax1").place(x=0 ,y=42)
+   tax100=Label(summaryfrme, text='Rs. '+str(taxvalu))
+   tax100.place(x=130 ,y=42)
+
+   xtracstvaluzz=int(cstxtra)
+   xtra1cst=round(xtracstvaluzz, 4)
+   cost=Label(summaryfrme, text="Extra cost").place(x=0 ,y=63)
+   cost100=Label(summaryfrme, text='Rs. '+str(xtra1cst)).place(x=130 ,y=63)
+ 
+   otherttlval=subtotl+taxvalu+xtra1cst
+   ot1v1=round(otherttlval, 4)
+   order=Label(summaryfrme, text="Order total").place(x=0 ,y=84)
+   order100=Label(summaryfrme, text='Rs. '+str(ot1v1)).place(x=130 ,y=84)
+
+   itemidot = ordtree.item(ordtree.focus())["values"][1]
+   ordttl=ot1v1
+   for record in ordtree.get_children():
+     ordtree.delete(record)
+   sqlordttl = "UPDATE Orders SET Order_total=%s WHERE orderid = %s"
+   valqordttl = (ordttl,itemidot, )
+   fbcursor.execute(sqlordttl, valqordttl,)
+   fbilldb.commit()
+   fbcursor.execute('SELECT * FROM orders')   
+   j = 0
+   for i in fbcursor:
+    ordtree.insert(parent='', index='end', iid=i, text='', values=(' ',i[0], i[1], i[2], i[3], i[4],i[5], i[6], i[7], i[8], i[9], i[10]))
+   j += 1
+      
+  recalbtn=Button(fir5Frame, compound="left", text="Show Summary",command=recalcultn)
+  recalbtn.place(x=75, y=0,height=35)
+  # btnup=Button(fir5Frame, compound="left", text="Line Up").place(x=150, y=0)
 
 
 
 
 #printselected order
-  
+  #############################################################################################################################################
 def printsele():
-  printer_name = win32print.GetDefaultPrinter ()
-#
-# raw_data could equally be raw PCL/PS read from
-#  some print-to-file operation
-#
-  if sys.version_info >= (3,):
-    raw_data = bytes ("This is a test", "utf-8")
-  else:
-    raw_data = "This is a test"
-  hPrinter = win32print.OpenPrinter (printer_name)
-  try:
-    hJob = win32print.StartDocPrinter (hPrinter, 1, ("2021-12-16 (1)", None, "RAW"))
-    try:
-     win32print.StartPagePrinter (hPrinter)
-     win32print.WritePrinter (hPrinter, raw_data)
-     win32print.EndPagePrinter (hPrinter)
-    finally:
-     win32print.EndDocPrinter (hPrinter)
-  finally:
-      win32print.ClosePrinter (hPrinter)
+#   printer_name = win32print.GetDefaultPrinter ()
+# #
+# # raw_data could equally be raw PCL/PS read from
+# #  some print-to-file operation
+# #
+#   if sys.version_info >= (3,):
+#     raw_data = bytes ("This is a test", "utf-8")
+#   else:
+#     raw_data = "This is a test"
+#   hPrinter = win32print.OpenPrinter (printer_name)
+#   try:
+#     hJob = win32print.StartDocPrinter (hPrinter, 1, ("2021-12-16 (1)", None, "RAW"))
+#     try:
+#      win32print.StartPagePrinter (hPrinter)
+#      win32print.WritePrinter (hPrinter, raw_data)
+#      win32print.EndPagePrinter (hPrinter)
+#     finally:
+#      win32print.EndDocPrinter (hPrinter)
+#   finally:
+#       win32print.ClosePrinter (hPrinter)
+  ws = Tk()
+  printFrame=Frame(ws,height=730,width=1000)
+  printFrame.place(x=260,y=10)
+  # printFrame.grid(row=2,column=2,sticky='ns')
+  ws.title('F-Billing Revolution 2022 - Order')
+  ws.maxsize(1360,740)       # Sets max size of window
+  ws.minsize(1360,740)
+  ws['bg']='#999999'
+
+  style = ttk.Style(root)
+  style.theme_use("clam")
+  style.theme_use("default")
+  style.configure("Treeview", height=100,padding=2)
+# background="#ffad33"
+  # tree=ttk.Treeview(master,style="mystyle.Treeview")
+
+  # fir5Frame=Frame(ws,height=38,width=210)
+  # fir5Frame.place(x=220,y=8)
+  # btndown=Button(ws, compound="left", text="Line Down").place(x=75, y=0)
+  def save():
+    files = [('All Files', '*.*'), 
+             ('Python Files', '*.py'),
+             ('Text Document', '*.txt')]
+    file = asksaveasfile(filetypes = files, defaultextension = files)
+  btnup=Button(ws, compound="left", text="Download" ,command = lambda : save())
+  btnup.place(x=120, y=20, height=40,width=80)
+
+  tv = ttk.Treeview(ws, style="mystyle.Treeview", height=140, show='headings').pack(expand=True)
+  # tv["show"]='headings'
+  # tv=ttk.Treeview(selectmode='browse')
+  # tv.pack(side = 'top')
+  tv['columns']=('Id/sku', 'Product/Service', 'Description', 'Quantity','Unit Price','Price')
+  tv.column('Id/sku', anchor=CENTER, width=100)
+  tv.column('Product/Service', anchor=CENTER, width=200)
+  tv.column('Description', anchor=CENTER, width=300)
+  tv.column('Quantity', anchor=CENTER, width=100)
+  tv.column('Unit Price', anchor=CENTER, width=100)
+  tv.column('Price', anchor=CENTER, width=100)
+
+  tv.heading('Id/sku', text='ID/SKU', anchor=CENTER)
+  tv.heading('Product/Service', text='Product/Service', anchor=CENTER)
+  tv.heading('Description', text='Description', anchor=CENTER)
+  tv.heading('Quantity', text='Quantity', anchor=CENTER)
+  tv.heading('Unit Price', text='Unit Price', anchor=CENTER)
+  tv.heading('Price', text='Price', anchor=CENTER)
+  # tv.pack(padx=10,pady=20)
+  itemid = ordtree.item(ordtree.focus())["values"][1]
+  sql = "select * from orders where orderid = %s"
+  val = (itemid, )
+  fbcursor.execute(sql, val)
+  oooodrdata = fbcursor.fetchone()
+  ba=oooodrdata[0]
+  sql4='SELECT * FROM storingproduct WHERE orderid=%s'
+  val10=(ba,)
+  fbcursor.execute(sql4,val10)
+  j = 0
+  for i in fbcursor:
+    tv.insert(parent='', index='end', iid=i, text='', values=(i[4], i[6], i[7], i[22], i[9], (i[22]*i[9])))
+  j += 1
+  tv.place(x=80,y=20,height=690)
+
+  # ttk.Treeview.place(x=230, y=160)
+# # -------------------------subtree for total------------------------
+#   tv1 = ttk.Treeview(ws, style="mystyle.Treeview", height=5)
+#   # ttk.Style().configure("Treeview", background="#ebebe0", foreground="#ebebe0")
+#   tv1.insert(parent='', index=0, iid=0, values=("vineet", "e11", 1000000.00))
+#   tv1.insert(parent='', index=1, iid=1, values=("anil", "e12", 120000.00))
+#   tv1.insert(parent='', index=2, iid=2, values=("ankit", "e13", 41000.00))
+#   tv1.insert(parent='', index=3, iid=3, values=("Shanti", "e14", 22000.00))
+#   tv1.place(x=900, y=549)
+ 
+
   
+  scrollbar = Scrollbar(ws)
+  scrollbar.place(x=1339, y=3, height=725)
+  scrollbar.config( command=tree.yview )
 
-  def property1():
-    propert=Toplevel()
-    propert.title("Microsoft Print To PDF Advanced Document Settings")
-    propert.geometry("670x500+240+150")
+  ws.mainloop()
+################################################################################################################################################  
+# def printsele():
+#       try:
+#         # import pdb;pdb.set_trace()
+#         # credit = round(float(data[0]['dblDebit'].split(' ')[0]),2)
+#         # debit = round(float(data[-2]['dblDebit'].split(' ')[0]))
 
-    def property2():
-      propert1=Toplevel()
-      propert1.title("Microsoft Print To PDF Advanced Document Settings")
-      propert1.geometry("670x500+240+150")
+#         # for dat in data:
+#         #     if len(dat) == 2:
+#         #         continue
+#         #     elif dat['datDate']=='Opening Balance':
+#         #         continue
+#         #     elif dat['datDate']=='Closing Balance':
+#         #         continue
+#         #     elif dat['dblDebit']!=0:
+#         #         debit -= dat['dblDebit']
+#         #     elif dat['dblCredit']!=0:
+#         #         credit -= dat['dblCredit']
+#         str_html = ""
 
-      name=Label(propert1, text="Microsoft Print To PDF Advanced Document Settings").place(x=10, y=5)
-      paper=Label(propert1, text="Paper/Output").place(x=30, y=35)
-      size=Label(propert1, text="Paper size").place(x=55, y=65)
-      n = StringVar()
-      search = ttk.Combobox(propert1, width = 15, textvariable = n )
-      search['values'] = ('letter')
-      search.place(x=150,y=65)
-      search.current(0)
-      copy=Label(propert1, text="Copy count:").place(x=55, y=95)
+#         str_html+="""
+#                 <!doctype>
+#                 <html>
+#                     <head>
+#                         <style>
+#                             .header {
+#                                 text-align:center;
+#                             }
+#                             .body {
+#                                 font-size: 1.5rem;
+#                                 font-weight:normal;
+#                             }
+#                             table {
+#                                 width:100%
+#                             }
+#                             td{
+#                                 text-align: center;
+#                                 padding-top: 1%;
+#                             }
+#                             .thead .th{
+#                                 border-top: 1px solid #333;
+#                                 border-bottom: 1px solid #333;
+#                                 text-align: center;
+#                                 font-weight: bold;
+#                             }
+#                         </style>
+#                     </head>
 
-      okbtn=Button(propert1,compound = LEFT,image=tick , text="Ok", width=60).place(x=460, y=450)
-      canbtn=Button(propert1,compound = LEFT,image=cancel, text="Cancel", width=60).place(x=570, y=450)
+
+#                     <body>
+
+#                         <div class="header">
+#                             <h2>Ledger Statements</h2>
+#                             <h3>"""+str(data[1]['strName'])+"""</h3>
+#                             <h5>"""+data[-1]['datFrom']+""" to """+data[-1]['datTo']+"""</h5>
+#                         </div>
+                        
+#                         <br>
+
+#                         <div class="body">
+#                             <table>
+#                                 <tr class="thead">
+#                                     <td class="th">Date</td>
+#                                     <td class="th">Name</td>
+#                                     <td class="th">Debit</td>
+#                                     <td class="th">Credit</td>
+#                                 </tr>
+
+#                                 <tbody>"""
+#         for dat in data:
+#             if len(dat) == 2:
+#                 continue
+#             elif dat['datDate']=='Opening Balance':
+#                 str_html+="""<tr>
+#                         <td></td>
+#                         <td>"""+dat['datDate']+"""</td>
+#                         <td>"""+str(dat['dblDebit'])+"""</td>
+#                         <td></td>
+#                     </tr>"""
+#             elif dat['datDate']=='Closing Balance':
+#                 str_html+="""<tr>
+#                         <td></td>
+#                         <td>"""+dat['datDate']+"""</td>
+#                         <td>"""+str(dat['dblDebit'])+"""</td>
+#                         <td></td>
+#                     </tr>"""
+#             else:
+#                 str_html+="""<tr>
+#                         <td>"""+dat['datDate']+"""</td>
+#                         <td>"""+dat['strName']+"""</td>
+#                         <td>"""+str(dat['dblDebit'])+"""</td>
+#                         <td>"""+str(dat['dblCredit'])+"""</td>
+#                     </tr>"""
+
+#         str_html+="""</tbody>
+#                 </table>
+#             </div>
+#         </body>
+#     </html>"""
+
+#         return str_html
+
+#     except Exception as e:
+#         raise
+  # def property1():
+  #   propert=Toplevel()
+  #   propert.title("Microsoft Print To PDF Advanced Document Settings")
+  #   propert.geometry("670x500+240+150")
+
+  #   def property2():
+  #     propert1=Toplevel()
+  #     propert1.title("Microsoft Print To PDF Advanced Document Settings")
+  #     propert1.geometry("670x500+240+150")
+
+  #     name=Label(propert1, text="Microsoft Print To PDF Advanced Document Settings").place(x=10, y=5)
+  #     paper=Label(propert1, text="Paper/Output").place(x=30, y=35)
+  #     size=Label(propert1, text="Paper size").place(x=55, y=65)
+  #     n = StringVar()
+  #     search = ttk.Combobox(propert1, width = 15, textvariable = n )
+  #     search['values'] = ('letter')
+  #     search.place(x=150,y=65)
+  #     search.current(0)
+  #     copy=Label(propert1, text="Copy count:").place(x=55, y=95)
+
+  #     okbtn=Button(propert1,compound = LEFT,image=tick , text="Ok", width=60).place(x=460, y=450)
+  #     canbtn=Button(propert1,compound = LEFT,image=cancel, text="Cancel", width=60).place(x=570, y=450)
       
       
 
 
-    style = ttk.Style()
-    style.theme_use('default')
-    style.configure('TNotebook.Tab', background="#999999", padding=5)
-    property_Notebook = ttk.Notebook(propert)
-    property_Frame = Frame(property_Notebook, height=500, width=670)
-    property_Notebook.add(property_Frame, text="Layout")
-    property_Notebook.place(x=0, y=0)
+  #   style = ttk.Style()
+  #   style.theme_use('default')
+  #   style.configure('TNotebook.Tab', background="#999999", padding=5)
+  #   property_Notebook = ttk.Notebook(propert)
+  #   property_Frame = Frame(property_Notebook, height=500, width=670)
+  #   property_Notebook.add(property_Frame, text="Layout")
+  #   property_Notebook.place(x=0, y=0)
 
-    name=Label(property_Frame, text="Orientation:").place(x=10, y=5)
-    n = StringVar()
-    search = ttk.Combobox(property_Frame, width = 23, textvariable = n )
-    search['values'] = ('Portrait')
-    search.place(x=10,y=25)
-    search.current(0)
+  #   name=Label(property_Frame, text="Orientation:").place(x=10, y=5)
+  #   n = StringVar()
+  #   search = ttk.Combobox(property_Frame, width = 23, textvariable = n )
+  #   search['values'] = ('Portrait')
+  #   search.place(x=10,y=25)
+  #   search.current(0)
 
-    text=Text(property_Frame,width=50).place(x=250, y=5,height=350)
+  #   text=Text(property_Frame,width=50).place(x=250, y=5,height=350)
 
-    btn=Button(property_Frame, text="Advanced",command=property2).place(x=550, y=380)
-    btn=Button(property_Frame,compound = LEFT,image=tick  ,text="OK", width=60,).place(x=430, y=420)
-    btn=Button(property_Frame,compound = LEFT,image=cancel , text="Cancel", width=60,).place(x=550, y=420)     
+  #   btn=Button(property_Frame, text="Advanced",command=property2).place(x=550, y=380)
+  #   btn=Button(property_Frame,compound = LEFT,image=tick  ,text="OK", width=60,).place(x=430, y=420)
+  #   btn=Button(property_Frame,compound = LEFT,image=cancel , text="Cancel", width=60,).place(x=550, y=420)     
 
 
     
-  if(False):
-      messagebox.showwarning("FBilling Revelution 2020", "Customer is required, Please select customer for this invoice\nbefore printing")
-  elif(False):
-      messagebox.showinfo("FBilling Revelution 2020", "Print job has been completed.")
-  else:
-      print1=Toplevel()
-      print1.title("Print")
-      print1.geometry("670x400+240+150")
+  # if(False):
+  #     messagebox.showwarning("FBilling Revelution 2020", "Customer is required, Please select customer for this invoice\nbefore printing")
+  # elif(False):
+  #     messagebox.showinfo("FBilling Revelution 2020", "Print job has been completed.")
+  # else:
+  #     print1=Toplevel()
+  #     print1.title("Print")
+  #     print1.geometry("670x400+240+150")
       
-      printerframe=LabelFrame(print1, text="Printer", height=80, width=650)
-      printerframe.place(x=7, y=5)      
-      name=Label(printerframe, text="Name:").place(x=10, y=5)
-      e1= ttk.Combobox(printerframe, width=40).place(x=70, y=5)
-      where=Label(printerframe, text="Where:").place(x=10, y=30)
-      printocheckvar=IntVar()
-      printochkbtn=Checkbutton(printerframe,text="Print to file",variable=printocheckvar,onvalue=1,offvalue=0,height=1,width=10)
-      printochkbtn.place(x=450, y=30)
-      btn=Button(printerframe, text="Properties", width=10,command=property1).place(x=540, y=5)
+  #     printerframe=LabelFrame(print1, text="Printer", height=80, width=650)
+  #     printerframe.place(x=7, y=5)      
+  #     name=Label(printerframe, text="Name:").place(x=10, y=5)
+  #     e1= ttk.Combobox(printerframe, width=40).place(x=70, y=5)
+  #     where=Label(printerframe, text="Where:").place(x=10, y=30)
+  #     printocheckvar=IntVar()
+  #     printochkbtn=Checkbutton(printerframe,text="Print to file",variable=printocheckvar,onvalue=1,offvalue=0,height=1,width=10)
+  #     printochkbtn.place(x=450, y=30)
+  #     btn=Button(printerframe, text="Properties", width=10,command=property1).place(x=540, y=5)
 
-      pageslblframe=LabelFrame(print1, text="Pages", height=140, width=320)
-      pageslblframe.place(x=10, y=90)
-      radvar=IntVar()
-      radioall=Radiobutton(pageslblframe, text="All", variable=radvar, value="1").place(x=10, y=5)
-      radiocpage=Radiobutton(pageslblframe, text="Current Page", variable=radvar, value="2").place(x=10, y=25)
-      radiopages=Radiobutton(pageslblframe, text="Pages: ", variable=radvar, value="3").place(x=10, y=45)
-      pagecountentry = Entry(pageslblframe, width=23).place(x=80, y=47)
-      pageinfolabl=Label(pageslblframe, text="Enter page numbers and/or page ranges\nseperated by commas. For example:1,3,5-12")
-      pageinfolabl.place(x=5, y=75)
+  #     pageslblframe=LabelFrame(print1, text="Pages", height=140, width=320)
+  #     pageslblframe.place(x=10, y=90)
+  #     radvar=IntVar()
+  #     radioall=Radiobutton(pageslblframe, text="All", variable=radvar, value="1").place(x=10, y=5)
+  #     radiocpage=Radiobutton(pageslblframe, text="Current Page", variable=radvar, value="2").place(x=10, y=25)
+  #     radiopages=Radiobutton(pageslblframe, text="Pages: ", variable=radvar, value="3").place(x=10, y=45)
+  #     pagecountentry = Entry(pageslblframe, width=23).place(x=80, y=47)
+  #     pageinfolabl=Label(pageslblframe, text="Enter page numbers and/or page ranges\nseperated by commas. For example:1,3,5-12")
+  #     pageinfolabl.place(x=5, y=75)
 
-      copylblframe=LabelFrame(print1, text="Copies", height=140, width=320)
-      copylblframe.place(x=335, y=90)
-      nolabl=Label(copylblframe, text="Number of copies").place(x=5, y=5)      
-      noentry = Entry(copylblframe, width=18).place(x=130, y=5)      
-      one=Frame(copylblframe, width=30, height=40, bg="black").place(x=20, y=40)     
-      two=Frame(copylblframe, width=30, height=40, bg="grey").place(x=15, y=45)     
-      three=Frame(copylblframe, width=30, height=40, bg="white").place(x=10, y=50)      
-      four=Frame(copylblframe, width=30, height=40, bg="black").place(x=80, y=40)      
-      fiv=Frame(copylblframe, width=30, height=40, bg="grey").place(x=75, y=45)      
-      six=Frame(copylblframe, width=30, height=40, bg="white").place(x=70, y=50)      
-      collatecheckvar=IntVar()
-      collatechkbtn=Checkbutton(copylblframe,text="Collate",variable=collatecheckvar,onvalue=1,offvalue=0,height=1,width=10)
-      collatechkbtn.place(x=130, y=70)
+  #     copylblframe=LabelFrame(print1, text="Copies", height=140, width=320)
+  #     copylblframe.place(x=335, y=90)
+  #     nolabl=Label(copylblframe, text="Number of copies").place(x=5, y=5)      
+  #     noentry = Entry(copylblframe, width=18).place(x=130, y=5)      
+  #     one=Frame(copylblframe, width=30, height=40, bg="black").place(x=20, y=40)     
+  #     two=Frame(copylblframe, width=30, height=40, bg="grey").place(x=15, y=45)     
+  #     three=Frame(copylblframe, width=30, height=40, bg="white").place(x=10, y=50)      
+  #     four=Frame(copylblframe, width=30, height=40, bg="black").place(x=80, y=40)      
+  #     fiv=Frame(copylblframe, width=30, height=40, bg="grey").place(x=75, y=45)      
+  #     six=Frame(copylblframe, width=30, height=40, bg="white").place(x=70, y=50)      
+  #     collatecheckvar=IntVar()
+  #     collatechkbtn=Checkbutton(copylblframe,text="Collate",variable=collatecheckvar,onvalue=1,offvalue=0,height=1,width=10)
+  #     collatechkbtn.place(x=130, y=70)
 
-      othrlblframe=LabelFrame(print1, text="Other", height=120, width=320)
-      othrlblframe.place(x=10, y=235)
-      printlb=Label(othrlblframe, text="Print").place(x=5, y=0)
-      dropprint = ttk.Combobox(othrlblframe, width=23).place(x=80, y=0)
-      orderlb=Label(othrlblframe, text="Order").place(x=5, y=25)
-      dropord = ttk.Combobox(othrlblframe, width=23).place(x=80, y=25)
-      duplexlb=Label(othrlblframe, text="Duplex").place(x=5, y=50)
-      droplex = ttk.Combobox(othrlblframe, width=23).place(x=80, y=50)
+  #     othrlblframe=LabelFrame(print1, text="Other", height=120, width=320)
+  #     othrlblframe.place(x=10, y=235)
+  #     printlb=Label(othrlblframe, text="Print").place(x=5, y=0)
+  #     dropprint = ttk.Combobox(othrlblframe, width=23).place(x=80, y=0)
+  #     orderlb=Label(othrlblframe, text="Order").place(x=5, y=25)
+  #     dropord = ttk.Combobox(othrlblframe, width=23).place(x=80, y=25)
+  #     duplexlb=Label(othrlblframe, text="Duplex").place(x=5, y=50)
+  #     droplex = ttk.Combobox(othrlblframe, width=23).place(x=80, y=50)
 
-      prmodelblframe=LabelFrame(print1, text="Print mode", height=120, width=320)
-      prmodelblframe.place(x=335, y=235)
-      dropscal = ttk.Combobox(prmodelblframe, width=30).place(x=5, y=5)
-      poslb=Label(prmodelblframe, text="Print on sheet").place(x=5, y=35)
-      droppos = ttk.Combobox(prmodelblframe, width=10).place(x=155, y=35)
+  #     prmodelblframe=LabelFrame(print1, text="Print mode", height=120, width=320)
+  #     prmodelblframe.place(x=335, y=235)
+  #     dropscal = ttk.Combobox(prmodelblframe, width=30).place(x=5, y=5)
+  #     poslb=Label(prmodelblframe, text="Print on sheet").place(x=5, y=35)
+  #     droppos = ttk.Combobox(prmodelblframe, width=10).place(x=155, y=35)
 
-      okbtn=Button(print1,compound = LEFT,image=tick , text="Ok", width=60).place(x=460, y=370)
-      canbtn=Button(print1,compound = LEFT,image=cancel, text="Cancel", width=60).place(x=570, y=370)
+  #     okbtn=Button(print1,compound = LEFT,image=tick , text="Ok", width=60).place(x=460, y=370)
+  #     canbtn=Button(print1,compound = LEFT,image=cancel, text="Cancel", width=60).place(x=570, y=370)
       
 
 
@@ -3152,21 +4213,34 @@ def convertinv():
     fbcursor.execute(orddta,val,)
     abc=fbcursor.fetchone()
     print (abc)
+  
     sql='INSERT INTO invoice(orderid,businessname,businessaddress,shipname,shipaddress,cpemail,cpmobileforsms) VALUES(%s,%s,%s,%s,%s,%s,%s)' #adding values into db
     val1=(abc[0],abc[1],abc[2],abc[3],abc[4],abc[5],abc[6])
     fbcursor.execute(sql,val1,)
     fbilldb.commit()
 
+# .....>>>>> looking for invoiced/draft <<<<<.....
 
-    # valz=(convertid)
-    # print (valz)
-    # valz = (convertid,)
+    itemid = ordtree.item(ordtree.focus())["values"][1]
+    invoz="Invoiced"
+    for record in ordtree.get_children():
+      ordtree.delete(record)
+    sqlq = "UPDATE Orders SET status=%s WHERE orderid = %s"
+    # 'UPDATE storingproduct SET Productserviceid=%s
+    valq = (invoz,itemid, )
+    fbcursor.execute(sqlq, valq,)
+    fbilldb.commit()
+
+    fbcursor.execute('SELECT * FROM orders')   
+    j = 0
+    for i in fbcursor:
+     ordtree.insert(parent='', index='end', iid=i, text='', values=(' ',i[0], i[1], i[2], i[3], i[4],i[5], i[6], i[7], i[8], i[9], i[10]))
+    j += 1
 
 
-
-    messagebox.showinfo("Make invoice from Estimate", "Invoice Creation was Successfull.")
-  else:
-      messagebox.destroy()
+    # messagebox.showinfo("Make invoice from Estimate", "Invoice Creation was Successfull.")
+  # else:
+  #     messagebox.destroy()
   
 
 #delete orders  
@@ -3178,12 +4252,34 @@ def dele():
   delmess = messagebox.askyesno("Delete Order", "Are you sure to delete this Order?")
   if delmess == True:
     itemid = ordtree.item(ordtree.focus())["values"][1]
-    print(itemid,)
+    # print(itemid,)
     sql = 'DELETE FROM Orders WHERE orderid=%s'
     val = (itemid,)
     fbcursor.execute(sql, val)
     fbilldb.commit()
     ordtree.delete(ordtree.selection()[0])
+
+    sqlstrngprdct='DELETE FROM storingproduct WHERE orderid=%s'
+    valstpr = (itemid,)
+    fbcursor.execute(sqlstrngprdct, valstpr)
+    fbilldb.commit()
+
+
+    for record in ordtree.get_children():
+      ordtree.delete(record)
+        
+    sql = "SELECT * FROM Orders"
+    fbcursor.execute(sql,)
+    
+    a=0
+    j = 0
+    for i in fbcursor:
+      ordtree.insert(parent='', index='end', iid=i, text='', values=(' ',i[0], i[1], i[2], i[3], i[4],i[5], i[6], i[7], i[8], i[9], i[10]))
+      for line in ordtree.get_children():
+          idsave=ordtree.item(line)['values'][9]
+      a+=idsave
+    j += 1
+    ordtotalrowcol.config(text=a)
   else:
     pass
 
@@ -3284,10 +4380,10 @@ recurLabel.pack(side="left")
 w = Canvas(midFrame, width=1, height=65, bg="#b3b3b3", bd=0)
 w.pack(side="left", padx=5)
 
-previewLabel = Button(midFrame,compound="top", text="Print\nPreview",relief=RAISED, image=photo4,bg="#f8f8f2", fg="black", height=55, bd=1, width=55, activebackground="red",command=printpreview)
-previewLabel.pack(side="left")
+# previewLabel = Button(midFrame,compound="top", text="Print\nPreview",relief=RAISED, image=photo5,bg="#f8f8f2", fg="black", height=55, bd=1, width=55, activebackground="red",command=printpreview)
+# previewLabel.pack(side="left")
 
-purchaseLabel = Button(midFrame,compound="top", text="Print\nSelected",relief=RAISED, image=photo5,bg="#f8f8f2", fg="black", height=55, bd=1, width=55,command=printsele)
+purchaseLabel = Button(midFrame,compound="top", text="Print\nSelected",relief=RAISED, image=photo4,bg="#f8f8f2", fg="black", height=55, bd=1, width=55,command=printsele)
 purchaseLabel.pack(side="left")
 
 w = Canvas(midFrame, width=1, height=55, bg="#b3b3b3", bd=0)
@@ -3296,7 +4392,7 @@ w.pack(side="left", padx=5)
 expenseLabel = Button(midFrame,compound="top", text="E-mail\nOrder",relief=RAISED, image=photo6,bg="#f8f8f2", fg="black", height=55, bd=1, width=55,command=email_invoice_recurring)
 expenseLabel.pack(side="left")
 
-smsLabel = Button(midFrame,compound="top", text="Send SMS\nnotification",relief=RAISED, image=photo10,bg="#f8f8f2", fg="black", height=55, bd=1, width=55,command=sms)
+smsLabel = Button(midFrame,compound="top", text="Send SMS\nnotification",relief=RAISED, image=photo10,bg="#f8f8f2", fg="black", height=55, bd=1, width=62,command=sms)
 smsLabel.pack(side="left")
 
 w = Canvas(midFrame, width=1, height=55, bg="#b3b3b3", bd=0)
@@ -3305,35 +4401,125 @@ w.pack(side="left", padx=5)
 productLabel = Button(midFrame,compound="top", text="Search\nOrders",relief=RAISED, image=photo7,bg="#f8f8f2", fg="black", height=55, bd=1, width=55,command=search)
 productLabel.pack(side="left")
 
+
+# def date_range(start, end):
+#     delta = end - start  # as timedelta
+#     days = [start + timedelta(days=i) for i in range(delta.days + 1)]
+#     return days
+
 lbframe = LabelFrame(midFrame, height=60, width=200, bg="#f8f8f2")
 lbframe.pack(side="left", padx=10, pady=0)
 lbl_invdt = Label(lbframe, text="Order date from : ", bg="#f8f8f2")
 lbl_invdt.grid(row=0, column=0, pady=5, padx=(5, 0))
 lbl_invdtt = Label(lbframe, text="Order date to  :  ", bg="#f8f8f2")
 lbl_invdtt.grid(row=1, column=0, pady=5, padx=(5, 0))
-invdt = DateEntry(lbframe, width=15)
-invdt.grid(row=0, column=1)
-invdtt = DateEntry(lbframe, width=15)
-invdtt.grid(row=1, column=1)
+
+
+def date_range(): # Start and stop dates for range
+  var1=start_dte.get_date().strftime('%y/%m/%d')
+  var2=stop_dte.get_date().strftime('%y/%m/%d')
+  for record in ordtree.get_children():
+    ordtree.delete(record)
+
+  sqldate='SELECT * FROM Orders WHERE order_date BETWEEN %s AND %s'
+  valuz=(var1,var2,)
+  fbcursor.execute(sqldate,valuz)
+  filterdate=fbcursor.fetchall()
+  countp = 0
+  for i in filterdate:
+    ordtree.insert(parent='', index='end', iid=i, text='', values=(' ',i[0], i[1], i[2], i[3], i[4],i[5], i[6], i[7], i[8], i[9], i[10]))
+  countp += 1
+
+start_dte = DateEntry(lbframe, width=15)
+start_dte.grid(row=0, column=1)
+stop_dte = DateEntry(lbframe, width=15)
+stop_dte.grid(row=1, column=1)
 checkvar1 = IntVar()
-chkbtn1 = Checkbutton(lbframe, text = "Apply filter", variable = checkvar1, onvalue = 1, offvalue = 0, height = 2, width = 8, bg="#f8f8f2")
+chkbtn1 = Button(lbframe, text = "Apply\nFilter",height = 2, width = 8,command=date_range,bg="#f8f8f2")
 chkbtn1.grid(row=0, column=2, rowspan=2, padx=(5,5))
 
-productLabel = Button(midFrame,compound="top", text="Refresh\nOrders list",relief=RAISED, image=photo8,fg="black", height=55, bd=1, width=55)
+def refreshbttn():
+  for record in ordtree.get_children():
+    ordtree.delete(record)
+  fbcursor.execute("select *  from Orders")
+  pandsdata = fbcursor.fetchall()
+  countp = 0
+  for i in pandsdata:
+    ordtree.insert(parent='', index='end', iid=i, text='', values=(' ',i[0], i[1], i[2], i[3], i[4],i[5], i[6], i[7], i[8], i[9], i[10]))
+  countp += 1
+  for record in prstree.get_children():
+    prstree.delete(record)
+
+
+productLabel = Button(midFrame,compound="top", text="Refresh\nOrders list",relief=RAISED, image=photo8,fg="black", height=55, bd=1, width=55,command=refreshbttn)
 productLabel.pack(side="left")
 
 w = Canvas(midFrame, width=1, height=55, bg="#b3b3b3", bd=0)
 w.pack(side="left", padx=5)
 
-productLabel = Button(midFrame,compound="top", text="Hide totals\nSum",relief=RAISED, image=photo9,bg="#f8f8f2", fg="black", height=55, bd=1, width=55)
+# global showhide
+# showhide=BooleanVar()
+productLabel = Button(midFrame,compound="top", text="Hide totals\nSum",relief=RAISED, image=photo9,bg="#f8f8f2", fg="black", height=55, bd=1, width=55,command=lambda: label_hide_show('Hide totals\nSum'))
 productLabel.pack(side="left")
+# productLabel = Button(midFrame,compound="top", text="Show totals\nSum",relief=RAISED, image=photo9,bg="#f8f8f2", fg="black", height=55, bd=1, width=55,command=lambda: label_show_show('Show totals\nSum'))
+# productLabel.pack(side="left")
 
 invoilabel = Label(mainFrame, text="Orders(All)", font=("arial", 18), bg="#f8f8f2")
 invoilabel.pack(side="left", padx=(20,0))
-drop = ttk.Combobox(mainFrame, value="Hello")
-drop.pack(side="right", padx=(0,10))
-invoilabel = Label(mainFrame, text="Category filter", font=("arial", 15), bg="#f8f8f2")
-invoilabel.pack(side="right", padx=(0,10))
+
+# def ftr(event):
+#   filt = dropordr.get()
+#   for record in ordtree.get_children():
+#     ordtree.delete(record) 
+#   sqlmo = "SELECT * from Orders"
+#   # val = (filt, )
+#   fbcursor.execute(sqlmo, )
+#   records = fbcursor.fetchall()
+  
+#   count=0
+#   for i in records:
+#     if True:
+#       ordtree.insert(parent='', index='end', iid=i, text='', values=(' ',i[0], i[1], i[2], i[3], i[4],i[5], i[6], i[7], i[8], i[9], i[10]))
+#     else:
+#       pass
+#   count += 1
+
+# sqlcat = "SELECT businessname FROM Orders"
+# fbcursor.execute(sqlcat,)
+# rec = fbcursor.fetchall()
+# dropordr = ttk.Combobox(mainFrame,)
+# dropordr['values'] = rec
+# dropordr.pack(side="right", padx=(0,10))
+
+# dropordr.bind("<<ComboboxSelected>>", ftr)
+
+def ftr(event):
+  filt = dropordr.get()
+  for record in ordtree.get_children():
+    ordtree.delete(record)
+    
+  sql = "select * from orders where category = %s"
+  val = (filt, )
+  fbcursor.execute(sql, val)
+  records = fbcursor.fetchall()
+  
+  count=0
+  for i in records:
+    if True:
+      ordtree.insert(parent='', index='end', iid=i, text='', values=(' ',i[0], i[1], i[2], i[3], i[4],i[5], i[6], i[7], i[8], i[9], i[10]))
+    else:
+      pass
+  count += 1
+sql = "SELECT DISTINCT category FROM orders"
+fbcursor.execute(sql,)
+rec = fbcursor.fetchall()
+
+dropordr = ttk.Combobox(mainFrame, value=" ")
+dropordr.pack(side="right", padx=(0,10))
+dropordr['values'] = rec
+dropordr.bind("<<ComboboxSelected>>", ftr)
+ordllabel = Label(mainFrame, text="Category Filter ", font=("arial", 15), bg="#f8f8f2")
+ordllabel.pack(side="right", padx=(0,10))
 
 # class MyApp:
 #   def __init__(self, parent):
@@ -3378,42 +4564,89 @@ ordtree.heading(7, text="Emailed on")
 ordtree.heading(8, text="Printed on")
 ordtree.heading(9, text="SMS on")
 ordtree.heading(10, text="Order Total")   
-ordtree.column(1, width = 50)
-ordtree.column(2, width = 140)
-ordtree.column(3, width = 140)
-ordtree.column(4, width = 140)
-ordtree.column(5, width = 210)
-ordtree.column(6, width = 130)
-ordtree.column(7, width = 150)
-ordtree.column(8, width = 130)
-ordtree.column(9, width = 130)
-ordtree.column(10, width = 130)
-ordtree.bind('<Double-Button-1>' ,)
-# ordtree.bind('<Enter>', lambda event :item_selected1())
-# def item_selected1(event):
-#         selected = ordtree.focus()
-#         global valuep
-#         valuep= ordtree.item(selected)["values"][0]
-#         print(valuep)
-#         # messagebox.showinfo("",valuep)
+ordtree.column(1, width = 50, anchor="center")
+ordtree.column(2, width = 140, anchor="center")
+ordtree.column(3, width = 140, anchor="center")
+ordtree.column(4, width = 140, anchor="center")
+ordtree.column(5, width = 210, anchor="center")
+ordtree.column(6, width = 130, anchor="center")
+ordtree.column(7, width = 150, anchor="center")
+ordtree.column(8, width = 130, anchor="center")
+ordtree.column(9, width = 130, anchor="center")
+ordtree.column(10, width = 130, anchor="center")
+ordtotalrowcol = Label(tab2,bg="#f5f3f2")
+ordtotalrowcol.place(x=1260,y=400,width=80,height=18)
+hidden=True
+def label_hide_show(text):
+    global hidden
+    if hidden:
+        show=0
+        j = 0
+        for i in fbcursor:
+          ordtree.insert(parent='', index='end', iid=i, text='', values=(' ',i[0], i[1], i[2], i[3], i[4],i[5], i[6], i[7], i[8], i[9], i[10]))
+          for line in ordtree.get_children():
+            idsave=ordtree.item(line)['values'][9]
+          show+=idsave
+        j += 1
+        ordtotalrowcol.config(text=show)
+        # ordtotalrowcol.config(text=ordtotalrowcol)
+        # ordtotalrowcol.place(x=1260,y=400,width=80,height=18)
+        ordtotalrowcol.pack(side = "top", fill = tk.BOTH)
+        hidden = False
+    else:
+        ordtotalrowcol.pack_forget()
+        hidden=True
 
-#         sql = "SELECT * FROM productservice  WHERE productserviceid= %s"
-#         i=(valuep,)
-#         fbcursor.execute(sql,i)
-        
-#         j = 0
-#         for i in fbcursor:
-#          prstree.insert(parent='', index='end', iid=i, text='', values=(i[2],i[4],i[5],i[7],i[13],i[8],i[10],(i[7]*i[13])))
-#         j += 1
+# def label_show_show(text):
+#       ordtotalrowcol.pack()
+
+# #btn1 = tk.Button(root, text="Get Started", height=3,width=26,bg="White", fg="Black", command=lambda: label_hide_show('Get started'))
+def prdctpicker(event):
+
+        selected = ordtree.focus()
+        selected_prdct= ordtree.item(selected)["values"][1]
+        for record in prstree.get_children():
+         prstree.delete(record)
+        sqlprdct='SELECT * FROM storingproduct WHERE orderid=%s'
+        valprdct=(selected_prdct,)
+        fbcursor.execute(sqlprdct,valprdct)
+        prdctsltn=fbcursor.fetchall()
+        j = 0
+        for i in prdctsltn:
+         prstree.insert(parent='', index='end', iid=i, text='', values=(' ',i[21], i[6], i[7],i[9],i[22],i[12],(i[9]*i[22])))
+        j += 1
+ordtree.bind('<Double-Button-1>' , prdctpicker)
+
+  # ba=osdata[0]
+  # sql4='SELECT * FROM storingproduct WHERE orderid=%s'
+  # val10=(ba,)
+  # fbcursor.execute(sql4,val10)
+  # totalpriceinput=0
+  # j = 0
+  # for i in fbcursor:
+  #   vwedttree1.insert(parent='', index='end', iid=i, text='', values=(i[4],i[6],i[7],i[9],i[22],i[10],i[12],(i[9]*i[22])))
+  #   # for line in vwedttree1.get_children():
+  #   #   idsave1=vwedttree1.item(line)['values'][7]
+  #   totalpriceinput+=(i[9]*i[22])
+  #   j += 1
+  # pricecol.config(text=totalpriceinput)
 
 fbcursor.execute('SELECT * FROM Orders;')
+ordertotalinput=0
 j = 0
 for i in fbcursor:
     ordtree.insert(parent='', index='end', iid=i, text='', values=(' ',i[0], i[1], i[2], i[3], i[4],i[5], i[6], i[7], i[8], i[9], i[10]))
+    for line in ordtree.get_children():
+     idsave1=ordtree.item(line)['values'][9]
+    ordertotalinput += idsave1
     j += 1
+ordtotalrowcol.config(text=ordertotalinput)
 
-inverticalbar=ttk.Scrollbar()
-inverticalbar.place(x=995+350,y=143,height=300+20)
+scrollbar = Scrollbar(tab2)
+scrollbar.place(x=1016+300+25, y=120, height=280+20)
+
+# inverticalbar=ttk.Scrollbar()
+# inverticalbar.place(x=995+350,y=143,height=300+20)
 tabControl = ttk.Notebook(tab2)
 tab1 = ttk.Frame(tabControl)
 tab2 = ttk.Frame(tabControl)
@@ -3435,14 +4668,14 @@ prstree.heading(5, text="Price")
 prstree.heading(6, text="QTY")
 prstree.heading(7, text="Tax1")
 prstree.heading(8, text="Line Total")   
-prstree.column(1, width = 50)
-prstree.column(2, width = 270) 
-prstree.column(3, width = 270)
-prstree.column(4, width = 300)
-prstree.column(5, width = 130)
-prstree.column(6, width = 100)
-prstree.column(7, width = 100)
-prstree.column(8, width = 150)
+prstree.column(1, width = 50, anchor="center")
+prstree.column(2, width = 270, anchor="center") 
+prstree.column(3, width = 270, anchor="center")
+prstree.column(4, width = 300, anchor="center")
+prstree.column(5, width = 130, anchor="center")
+prstree.column(6, width = 100, anchor="center")
+prstree.column(7, width = 100, anchor="center")
+prstree.column(8, width = 150, anchor="center")
 
 # fbcursor.execute('SELECT * FROM Productservice;') 
 # j = 0
@@ -3457,17 +4690,19 @@ tree.pack(side = 'top')
 tree.heading(1)
 tree.heading(2, text="Attach to Email",)
 tree.heading(3, text="Filename")
-tree.column(1, width = 50)
-tree.column(2, width = 290)
-tree.column(3, width = 1000)
-expverticalbar=ttk.Scrollbar()
-expverticalbar.place(x=995+350,y=520,height=195)
-
+tree.column(1, width = 50, anchor="center")
+tree.column(2, width = 290, anchor="center")
+tree.column(3, width = 1000, anchor="center")
+# expverticalbar=ttk.Scrollbar()
+# expverticalbar.place(x=995+350,y=520,height=195)
+scrollbar = Scrollbar()
+scrollbar.place(x=992+350,y=519,height=180)
 
 
 
 def calcu():
   subprocess.Popen('C:\\Windows\\System32\\calc.exe')
+  
 
 # global printsele1
 # def printsele1():
@@ -3533,18 +4768,7 @@ def ord_prdt_reg():# Storing values into db (user)
   #         self.table.insert('','end', values = (row[8], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[9], row[10], row[12]))
 
 
-  
 
-
-
-
-
-  
-  
-  
-
-
-       
 
 def addacnt():  
    messagebox.showinfo("F-Billing Revolution 2022", "No sender email address.\nPlease fill Your company email address textfield under the Account tab.")
@@ -3554,4 +4778,3 @@ def savesettings():
 
 
 root.mainloop()
-
