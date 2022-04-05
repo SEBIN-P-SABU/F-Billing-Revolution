@@ -161,7 +161,7 @@ def create():
       ven.geometry("930x650+240+10")
       checkvar1=IntVar()
       checkvar2=IntVar()
-      radio=IntVar()
+      # radio=IntVar()
       createFrame=Frame(ven, bg="#f5f3f2", height=650)
       createFrame.pack(side="top", fill="both")
       labelframe1 = LabelFrame(createFrame,text="Customer",bg="#f5f3f2",font=("arial",15))
